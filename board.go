@@ -3,6 +3,7 @@ package tabula
 import (
 	"log"
 	"sort"
+	"sync"
 )
 
 const (
@@ -294,27 +295,41 @@ func (b Board) Evaluation(player int, hitScore int, moves [][]int) *Analysis {
 }
 
 func (b Board) _analyze(player int, hitScore int, available [][]int, moves [][]int) []*Analysis {
+	m := &sync.Mutex{}
+	w := &sync.WaitGroup{}
 	var result []*Analysis
 	for _, move := range available {
 		if !b.HaveRoll(move[0], move[1], player) {
 			log.Println("NO ROLL", move[0], move[1], player, b)
 		}
-		var hs = hitScore
-		var bc Board
-		bc = b
-		checkers := bc.Checkers(move[1], opponent(player))
-		if checkers == 1 {
-			if player == 1 {
-				hs += 25 - move[1]
-			} else {
-				hs += move[1]
+		move := move
+		w.Add(1)
+		go func() {
+			var hs = hitScore
+			var bc Board
+			bc = b
+			checkers := bc.Checkers(move[1], opponent(player))
+			if checkers == 1 {
+				if player == 1 {
+					hs += 25 - move[1]
+				} else {
+					hs += move[1]
+				}
 			}
-		}
-		bc = bc.Move(move[0], move[1], player)
-		bc = bc.UseRoll(move[0], move[1], player)
-		result = append(result, bc.Evaluation(player, hs, append(append([][]int{}, moves...), move)))
-		result = append(result, bc._analyze(player, hs, bc.Available(player), append(append([][]int{}, moves...), move))...)
+			bc = bc.Move(move[0], move[1], player)
+			bc = bc.UseRoll(move[0], move[1], player)
+
+			evaluation := bc.Evaluation(player, hs, append(append([][]int{}, moves...), move))
+			subEvaluation := bc._analyze(player, hs, bc.Available(player), append(append([][]int{}, moves...), move))
+
+			m.Lock()
+			result = append(result, evaluation)
+			result = append(result, subEvaluation...)
+			m.Unlock()
+			w.Done()
+		}()
 	}
+	w.Wait()
 	return result
 }
 
@@ -338,31 +353,38 @@ func (b Board) Analyze(player int, available [][]int) []*Analysis {
 	}
 	result = newResult
 	if player == 1 {
+		m := &sync.Mutex{}
 		for i := range result {
 			var oppScore float64
-			var j int
+			w := &sync.WaitGroup{}
 			for roll1 := int8(1); roll1 <= 6; roll1++ {
-				for roll2 := int8(1); roll2 <= 6; roll2++ {
-					bc := Board{}
-					bc = result[i].Board
-					bc[SpaceRoll1], bc[SpaceRoll2] = roll1, roll2
-					if roll1 == roll2 {
-						bc[SpaceRoll3], bc[SpaceRoll4] = roll1, roll2
-					} else {
-						bc[SpaceRoll3], bc[SpaceRoll4] = 0, 0
+				roll1 := roll1
+				w.Add(1)
+				go func() {
+					for roll2 := int8(1); roll2 <= 6; roll2++ {
+						bc := Board{}
+						bc = result[i].Board
+						bc[SpaceRoll1], bc[SpaceRoll2] = roll1, roll2
+						if roll1 == roll2 {
+							bc[SpaceRoll3], bc[SpaceRoll4] = roll1, roll2
+						} else {
+							bc[SpaceRoll3], bc[SpaceRoll4] = 0, 0
+						}
+						opponentAvailable := bc.Available(2)
+						result2 := bc._analyze(2, 0, opponentAvailable, nil)
+						var averageScore float64
+						for _, r := range result2 {
+							averageScore += r.Score
+						}
+						averageScore /= float64(len(result2))
+						m.Lock()
+						oppScore += averageScore
+						m.Unlock()
 					}
-					opponentAvailable := bc.Available(2)
-					result2 := bc._analyze(2, 0, opponentAvailable, nil)
-					var averageScore float64
-					for _, r := range result2 {
-						averageScore += r.Score
-					}
-					averageScore /= float64(len(result2))
-					oppScore += averageScore
-					_ = i
-					j++
-				}
+					w.Done()
+				}()
 			}
+			w.Wait()
 			result[i].Score = result[i].Score + (oppScore/36)*oppScoreWeight
 		}
 	}
