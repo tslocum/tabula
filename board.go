@@ -29,8 +29,10 @@ const (
 )
 
 type Analysis struct {
-	Board       Board
-	Moves       [][]int
+	Board Board
+	Moves [][]int
+	Score float64
+
 	Pips        int
 	Blots       int
 	Hits        int
@@ -40,16 +42,10 @@ type Analysis struct {
 	OppBlots float64
 	OppHits  float64
 	OppScore float64
-
-	Score float64
 }
 
 func (a *Analysis) String() string {
 	return fmt.Sprintf("Moves: %s Score: %.2f - Score: %.2f Pips: %d Blots: %d Hits: %d /  Score: %.2f Pips: %.2f Blots: %.2f Hits: %.2f", fmt.Sprint(a.Moves), a.Score, a.PlayerScore, a.Pips, a.Blots, a.Hits, a.OppScore, a.OppPips, a.OppBlots, a.OppHits)
-}
-
-func removeAnalysis(slice []*Analysis, i int) []*Analysis {
-	return append(slice[:i], slice[i+1:]...)
 }
 
 // Board represents the state of a game. It contains spaces for the checkers,
@@ -264,12 +260,16 @@ func (b Board) Pips(player int) int {
 		if player == 1 {
 			spaceValue = float64(space)
 			if space <= 6 {
-				spaceValue /= 2
+				spaceValue /= 4
+			} else {
+				spaceValue += 6
 			}
 		} else {
 			spaceValue = float64(25 - space)
 			if space >= 19 {
-				spaceValue /= 2
+				spaceValue /= 4
+			} else {
+				spaceValue += 6
 			}
 		}
 		pips += float64(b.Checkers(space, player)) * spaceValue
@@ -381,9 +381,9 @@ func (b Board) Analyze(player int, available [][]int) []*Analysis {
 			var oppHits float64
 			var oppScore float64
 			w := &sync.WaitGroup{}
+			w.Add(6)
 			for roll1 := int8(1); roll1 <= 6; roll1++ {
 				roll1 := roll1
-				w.Add(1)
 				go func() {
 					for roll2 := int8(1); roll2 <= 6; roll2++ {
 						bc := Board{}
