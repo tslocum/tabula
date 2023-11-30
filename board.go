@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	blotWeight     = 1.5
+	blotWeight     = 1.0
 	hitWeight      = -1.0
 	oppScoreWeight = -0.5
 )
@@ -73,6 +73,11 @@ func (b Board) Move(from int, to int, player int) Board {
 	} else if b[to] != 0 {
 		if (player == 1 && b[to] == -1) || (player == 2 && b[to] == 1) {
 			b[to] = 0
+			if player == 1 {
+				b[SpaceBarOpponent] -= 1
+			} else {
+				b[SpaceBarPlayer] += 1
+			}
 		} else if (player == 1 && b[to] < 0) || (player == 2 && b[to] > 0) {
 			b.Print()
 			log.Panic("illegal move: existing checkers at to space", from, to, player, b[to])
@@ -228,7 +233,11 @@ func (b Board) Available(player int) [][]int {
 				moves = append(moves, []int{from, to})
 			}
 		} else { // TODO clean up
-			for to := from + 1; to <= 25; to++ {
+			start := from + 1
+			if from == SpaceBarOpponent {
+				start = 0
+			}
+			for to := start; to <= 25; to++ {
 				if to == SpaceBarPlayer || to == SpaceBarOpponent || to == SpaceHomeOpponent || (to == SpaceHomeOpponent && !mayBearOff) {
 					continue
 				}
@@ -255,12 +264,12 @@ func (b Board) Pips(player int) int {
 		if player == 1 {
 			spaceValue = float64(space)
 			if space <= 6 {
-				spaceValue /= 10
+				spaceValue /= 2
 			}
 		} else {
 			spaceValue = float64(25 - space)
 			if space >= 19 {
-				spaceValue /= 10
+				spaceValue /= 2
 			}
 		}
 		pips += float64(b.Checkers(space, player)) * spaceValue
@@ -277,9 +286,9 @@ func (b Board) Blots(player int) int {
 			continue
 		}
 		if player == 1 {
-			spaceValue = space
-		} else {
 			spaceValue = 25 - space
+		} else {
+			spaceValue = space
 		}
 		pips += int(checkers) * spaceValue
 	}
