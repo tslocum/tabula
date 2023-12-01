@@ -28,6 +28,36 @@ const (
 	boardSpaces = 32
 )
 
+type probabilityTable struct {
+	Roll1  int
+	Roll2  int
+	Chance float64
+}
+
+var rollProbabilities = []*probabilityTable{
+	{1, 1, 1.0},
+	{1, 2, 2.0},
+	{1, 3, 2.0},
+	{1, 4, 2.0},
+	{1, 5, 2.0},
+	{1, 6, 2.0},
+	{2, 2, 1.0},
+	{2, 3, 2.0},
+	{2, 4, 2.0},
+	{2, 5, 2.0},
+	{2, 6, 2.0},
+	{3, 3, 1.0},
+	{3, 4, 2.0},
+	{3, 5, 2.0},
+	{3, 6, 2.0},
+	{4, 4, 1.0},
+	{4, 5, 2.0},
+	{4, 6, 2.0},
+	{5, 5, 1.0},
+	{5, 6, 2.0},
+	{6, 6, 1.0},
+}
+
 type Analysis struct {
 	Board Board
 	Moves [][]int
@@ -381,45 +411,50 @@ func (b Board) Analyze(player int, available [][]int) []*Analysis {
 			var oppHits float64
 			var oppScore float64
 			w := &sync.WaitGroup{}
-			w.Add(6)
-			for roll1 := int8(1); roll1 <= 6; roll1++ {
-				roll1 := roll1
+			w.Add(21)
+			for j := 0; j < 21; j++ {
+				j := j
 				go func() {
-					for roll2 := int8(1); roll2 <= 6; roll2++ {
-						bc := Board{}
-						bc = result[i].Board
-						bc[SpaceRoll1], bc[SpaceRoll2] = roll1, roll2
-						if roll1 == roll2 {
-							bc[SpaceRoll3], bc[SpaceRoll4] = roll1, roll2
-						} else {
-							bc[SpaceRoll3], bc[SpaceRoll4] = 0, 0
-						}
-						opponentAvailable := bc.Available(2)
-						if len(opponentAvailable) == 0 {
-							continue
-						}
-						result2 := bc._analyze(2, 0, opponentAvailable, nil)
-						var averagePips float64
-						var averageBlots float64
-						var averageHits float64
-						var averageScore float64
-						for _, r := range result2 {
-							averagePips += float64(r.Pips)
-							averageBlots += float64(r.Blots)
-							averageHits += float64(r.Hits)
-							averageScore += r.PlayerScore
-						}
-						averagePips /= float64(len(result2))
-						averageBlots /= float64(len(result2))
-						averageHits /= float64(len(result2))
-						averageScore /= float64(len(result2))
-						m.Lock()
-						oppPips += averagePips
-						oppBlots += averageBlots
-						oppHits += averageHits
-						oppScore += averageScore
-						m.Unlock()
+					check := rollProbabilities[j]
+					bc := Board{}
+					bc = result[i].Board
+					bc[SpaceRoll1], bc[SpaceRoll2] = int8(check.Roll1), int8(check.Roll2)
+					if int8(check.Roll1) == int8(check.Roll2) {
+						bc[SpaceRoll3], bc[SpaceRoll4] = int8(check.Roll1), int8(check.Roll2)
 					}
+					opponentAvailable := bc.Available(2)
+					if len(opponentAvailable) == 0 {
+						evaluation := bc.Evaluation(2, 0, nil)
+						m.Lock()
+						oppPips += float64(evaluation.Pips) * check.Chance
+						oppBlots += float64(evaluation.Blots) * check.Chance
+						oppHits += float64(evaluation.Hits) * check.Chance
+						oppScore += float64(evaluation.PlayerScore) * check.Chance
+						m.Unlock()
+						w.Done()
+						return
+					}
+					result2 := bc._analyze(2, 0, opponentAvailable, nil)
+					var averagePips float64
+					var averageBlots float64
+					var averageHits float64
+					var averageScore float64
+					for _, r := range result2 {
+						averagePips += float64(r.Pips)
+						averageBlots += float64(r.Blots)
+						averageHits += float64(r.Hits)
+						averageScore += r.PlayerScore
+					}
+					averagePips /= float64(len(result2))
+					averageBlots /= float64(len(result2))
+					averageHits /= float64(len(result2))
+					averageScore /= float64(len(result2))
+					m.Lock()
+					oppPips += averagePips * check.Chance
+					oppBlots += averageBlots * check.Chance
+					oppHits += averageHits * check.Chance
+					oppScore += averageScore * check.Chance
+					m.Unlock()
 					w.Done()
 				}()
 			}
