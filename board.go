@@ -345,16 +345,17 @@ func (b Board) Evaluation(player int, hitScore int, moves [][]int) *Analysis {
 	}
 }
 
-func (b Board) _analyze(player int, hitScore int, available [][]int, moves [][]int) []*Analysis {
-	m := &sync.Mutex{}
+func (b Board) _analyze(player int, hitScore int, available [][]int, moves [][]int, out *[]*Analysis, outMutex *sync.Mutex) {
+	if len(available) == 0 {
+		return
+	}
 	w := &sync.WaitGroup{}
-	var result []*Analysis
+	w.Add(len(available))
 	for _, move := range available {
 		if !b.HaveRoll(move[0], move[1], player) {
 			log.Panic("NO ROLL", move[0], move[1], player, b)
 		}
 		move := move
-		w.Add(1)
 		go func() {
 			var hs = hitScore
 			var bc Board
@@ -370,25 +371,28 @@ func (b Board) _analyze(player int, hitScore int, available [][]int, moves [][]i
 			bc = bc.Move(move[0], move[1], player)
 			bc = bc.UseRoll(move[0], move[1], player)
 
-			evaluation := bc.Evaluation(player, hs, append(append([][]int{}, moves...), move))
-			subEvaluation := bc._analyze(player, hs, bc.Available(player), append(append([][]int{}, moves...), move))
+			newMoves := append(append([][]int{}, moves...), move)
 
-			m.Lock()
-			result = append(result, evaluation)
-			result = append(result, subEvaluation...)
-			m.Unlock()
+			evaluation := bc.Evaluation(player, hs, newMoves)
+			outMutex.Lock()
+			*out = append(*out, evaluation)
+			outMutex.Unlock()
+
+			bc._analyze(player, hs, bc.Available(player), newMoves, out, outMutex)
+
 			w.Done()
 		}()
 	}
 	w.Wait()
-	return result
 }
 
 func (b Board) Analyze(player int, available [][]int) []*Analysis {
 	if len(available) == 0 {
 		return nil
 	}
-	result := b._analyze(player, 0, available, nil)
+	result := make([]*Analysis, 0, 128)
+	b._analyze(player, 0, available, nil, &result, &sync.Mutex{})
+
 	var maxMoves int
 	for i := range result {
 		l := len(result[i].Moves)
@@ -405,66 +409,76 @@ func (b Board) Analyze(player int, available [][]int) []*Analysis {
 	result = newResult
 	if player == 1 {
 		m := &sync.Mutex{}
+		resultWaitGroup := &sync.WaitGroup{}
+		resultWaitGroup.Add(len(result))
 		for i := range result {
-			var oppPips float64
-			var oppBlots float64
-			var oppHits float64
-			var oppScore float64
-			w := &sync.WaitGroup{}
-			w.Add(21)
-			for j := 0; j < 21; j++ {
-				j := j
-				go func() {
-					check := rollProbabilities[j]
-					bc := Board{}
-					bc = result[i].Board
-					bc[SpaceRoll1], bc[SpaceRoll2] = int8(check.Roll1), int8(check.Roll2)
-					if int8(check.Roll1) == int8(check.Roll2) {
-						bc[SpaceRoll3], bc[SpaceRoll4] = int8(check.Roll1), int8(check.Roll2)
-					}
-					opponentAvailable := bc.Available(2)
-					if len(opponentAvailable) == 0 {
-						evaluation := bc.Evaluation(2, 0, nil)
+			i := i
+			go func() {
+				var oppPips float64
+				var oppBlots float64
+				var oppHits float64
+				var oppScore float64
+				w := &sync.WaitGroup{}
+				w.Add(21)
+				for j := 0; j < 21; j++ {
+					j := j
+					go func() {
+						check := rollProbabilities[j]
+						bc := Board{}
+						bc = result[i].Board
+						bc[SpaceRoll1], bc[SpaceRoll2] = int8(check.Roll1), int8(check.Roll2)
+						if int8(check.Roll1) == int8(check.Roll2) {
+							bc[SpaceRoll3], bc[SpaceRoll4] = int8(check.Roll1), int8(check.Roll2)
+						}
+						opponentAvailable := bc.Available(2)
+						if len(opponentAvailable) == 0 {
+							evaluation := bc.Evaluation(2, 0, nil)
+							m.Lock()
+							oppPips += float64(evaluation.Pips) * check.Chance
+							oppBlots += float64(evaluation.Blots) * check.Chance
+							oppHits += float64(evaluation.Hits) * check.Chance
+							oppScore += float64(evaluation.PlayerScore) * check.Chance
+							m.Unlock()
+							w.Done()
+							return
+						}
+						result2 := make([]*Analysis, 0, 128)
+						bc._analyze(2, 0, opponentAvailable, nil, &result2, &sync.Mutex{})
+						var averagePips float64
+						var averageBlots float64
+						var averageHits float64
+						var averageScore float64
+						for _, r := range result2 {
+							averagePips += float64(r.Pips)
+							averageBlots += float64(r.Blots)
+							averageHits += float64(r.Hits)
+							averageScore += r.PlayerScore
+						}
+						averagePips /= float64(len(result2))
+						averageBlots /= float64(len(result2))
+						averageHits /= float64(len(result2))
+						averageScore /= float64(len(result2))
 						m.Lock()
-						oppPips += float64(evaluation.Pips) * check.Chance
-						oppBlots += float64(evaluation.Blots) * check.Chance
-						oppHits += float64(evaluation.Hits) * check.Chance
-						oppScore += float64(evaluation.PlayerScore) * check.Chance
+						oppPips += averagePips * check.Chance
+						oppBlots += averageBlots * check.Chance
+						oppHits += averageHits * check.Chance
+						oppScore += averageScore * check.Chance
 						m.Unlock()
 						w.Done()
-						return
-					}
-					result2 := bc._analyze(2, 0, opponentAvailable, nil)
-					var averagePips float64
-					var averageBlots float64
-					var averageHits float64
-					var averageScore float64
-					for _, r := range result2 {
-						averagePips += float64(r.Pips)
-						averageBlots += float64(r.Blots)
-						averageHits += float64(r.Hits)
-						averageScore += r.PlayerScore
-					}
-					averagePips /= float64(len(result2))
-					averageBlots /= float64(len(result2))
-					averageHits /= float64(len(result2))
-					averageScore /= float64(len(result2))
-					m.Lock()
-					oppPips += averagePips * check.Chance
-					oppBlots += averageBlots * check.Chance
-					oppHits += averageHits * check.Chance
-					oppScore += averageScore * check.Chance
-					m.Unlock()
-					w.Done()
-				}()
-			}
-			w.Wait()
-			result[i].OppPips = (oppPips / 36)
-			result[i].OppBlots = (oppBlots / 36)
-			result[i].OppHits = (oppHits / 36)
-			result[i].OppScore = (oppScore / 36)
-			result[i].Score = result[i].PlayerScore + result[i].OppScore*WeightOppScore
+					}()
+				}
+				w.Wait()
+				m.Lock()
+				result[i].OppPips = (oppPips / 36)
+				result[i].OppBlots = (oppBlots / 36)
+				result[i].OppHits = (oppHits / 36)
+				result[i].OppScore = (oppScore / 36)
+				result[i].Score = result[i].PlayerScore + result[i].OppScore*WeightOppScore
+				m.Unlock()
+				resultWaitGroup.Done()
+			}()
 		}
+		resultWaitGroup.Wait()
 	}
 	sort.Slice(result, func(i, j int) bool {
 		return result[i].Score < result[j].Score
