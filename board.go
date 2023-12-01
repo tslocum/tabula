@@ -7,10 +7,10 @@ import (
 	"sync"
 )
 
-const (
-	blotWeight     = 1.0
-	hitWeight      = -1.0
-	oppScoreWeight = -0.5
+var (
+	WeightBlot     = 1.0
+	WeightHit      = -1.0
+	WeightOppScore = -0.5
 )
 
 const (
@@ -298,13 +298,13 @@ func (b Board) Blots(player int) int {
 func (b Board) Score(player int, hitScore int) float64 {
 	pips := b.Pips(player)
 	blots := b.Blots(player)
-	return float64(pips) + float64(blots)*blotWeight + float64(hitScore)*hitWeight
+	return float64(pips) + float64(blots)*WeightBlot + float64(hitScore)*WeightHit
 }
 
 func (b Board) Evaluation(player int, hitScore int, moves [][]int) *Analysis {
 	pips := b.Pips(player)
 	blots := b.Blots(player)
-	score := float64(pips) + float64(blots)*blotWeight + float64(hitScore)*hitWeight
+	score := float64(pips) + float64(blots)*WeightBlot + float64(hitScore)*WeightHit
 	return &Analysis{
 		Board:       b,
 		Moves:       moves,
@@ -428,7 +428,7 @@ func (b Board) Analyze(player int, available [][]int) []*Analysis {
 			result[i].OppBlots = (oppBlots / 36)
 			result[i].OppHits = (oppHits / 36)
 			result[i].OppScore = (oppScore / 36)
-			result[i].Score = result[i].PlayerScore + result[i].OppScore*oppScoreWeight
+			result[i].Score = result[i].PlayerScore + result[i].OppScore*WeightOppScore
 		}
 	}
 	sort.Slice(result, func(i, j int) bool {
