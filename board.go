@@ -1,7 +1,6 @@
 package tabula
 
 import (
-	"fmt"
 	"log"
 	"sort"
 	"sync"
@@ -56,26 +55,6 @@ var rollProbabilities = []*probabilityTable{
 	{5, 5, 1.0},
 	{5, 6, 2.0},
 	{6, 6, 1.0},
-}
-
-type Analysis struct {
-	Board Board
-	Moves [][]int
-	Score float64
-
-	Pips        int
-	Blots       int
-	Hits        int
-	PlayerScore float64
-
-	OppPips  float64
-	OppBlots float64
-	OppHits  float64
-	OppScore float64
-}
-
-func (a *Analysis) String() string {
-	return fmt.Sprintf("Moves: %s Score: %.2f - Score: %.2f Pips: %d Blots: %d Hits: %d /  Score: %.2f Pips: %.2f Blots: %.2f Hits: %.2f", fmt.Sprint(a.Moves), a.Score, a.PlayerScore, a.Pips, a.Blots, a.Hits, a.OppScore, a.OppPips, a.OppBlots, a.OppHits)
 }
 
 // Board represents the state of a game. It contains spaces for the checkers,
@@ -331,6 +310,16 @@ func (b Board) Score(player int, hitScore int) float64 {
 	return float64(pips) + float64(blots)*WeightBlot + float64(hitScore)*WeightHit
 }
 
+func (b Board) evaluate(player int, hitScore int, a *Analysis) {
+	pips := b.Pips(player)
+	blots := b.Blots(player)
+	score := float64(pips) + float64(blots)*WeightBlot + float64(hitScore)*WeightHit
+	a.Pips = pips
+	a.Blots = blots
+	a.Hits = hitScore
+	a.PlayerScore = score
+}
+
 func (b Board) Evaluation(player int, hitScore int, moves [][]int) *Analysis {
 	pips := b.Pips(player)
 	blots := b.Blots(player)
@@ -345,53 +334,64 @@ func (b Board) Evaluation(player int, hitScore int, moves [][]int) *Analysis {
 	}
 }
 
-func (b Board) _analyze(player int, hitScore int, available [][]int, moves [][]int, out *[]*Analysis, outMutex *sync.Mutex) {
-	if len(available) == 0 {
-		return
-	}
-	w := &sync.WaitGroup{}
-	w.Add(len(available))
+func queueAnalysis(a *Analysis, w *sync.WaitGroup, b Board, player int, available [][]int, moves [][]int, found *[][][]int, result *[]*Analysis, resultMutex *sync.Mutex) {
+	var hs int
+	resultMutex.Lock()
+QUEUE:
 	for _, move := range available {
-		if !b.HaveRoll(move[0], move[1], player) {
-			log.Panic("NO ROLL", move[0], move[1], player, b)
-		}
 		move := move
+		newMoves := append(append([][]int{}, moves...), move)
+
+		for _, f := range *found {
+			if movesEqual(f, newMoves) {
+				continue QUEUE
+			}
+		}
+		*found = append(*found, newMoves)
+
+		w.Add(1)
 		go func() {
-			var hs = hitScore
-			var bc Board
-			bc = b
-			checkers := bc.Checkers(move[1], opponent(player))
+			checkers := b.Checkers(move[1], opponent(player))
+			hs = 0
 			if checkers == 1 {
 				if player == 1 {
-					hs += move[1]
+					hs = move[1]
 				} else {
-					hs += 25 - move[1]
+					hs = 25 - move[1]
 				}
 			}
-			bc = bc.Move(move[0], move[1], player)
-			bc = bc.UseRoll(move[0], move[1], player)
-
-			newMoves := append(append([][]int{}, moves...), move)
-
-			evaluation := bc.Evaluation(player, hs, newMoves)
-			outMutex.Lock()
-			*out = append(*out, evaluation)
-			outMutex.Unlock()
-
-			bc._analyze(player, hs, bc.Available(player), newMoves, out, outMutex)
-
+			a := &Analysis{
+				Board:    b.Move(move[0], move[1], player).UseRoll(move[0], move[1], player),
+				Moves:    newMoves,
+				player:   player,
+				hitScore: hs,
+			}
+			a.Board.evaluate(player, hs, a)
+			queueAnalysis(a, w, a.Board, player, a.Board.Available(player), a.Moves, found, result, resultMutex)
+			resultMutex.Lock()
+			*result = append(*result, a)
+			resultMutex.Unlock()
 			w.Done()
 		}()
 	}
-	w.Wait()
+	resultMutex.Unlock()
 }
 
 func (b Board) Analyze(player int, available [][]int) []*Analysis {
 	if len(available) == 0 {
 		return nil
 	}
-	result := make([]*Analysis, 0, 128)
-	b._analyze(player, 0, available, nil, &result, &sync.Mutex{})
+
+	const bufferSize = 128
+	var found [][][]int
+	w := &sync.WaitGroup{}
+	result := make([]*Analysis, 0, bufferSize)
+	resultMutex := &sync.Mutex{}
+
+	a := &Analysis{}
+	b.evaluate(player, 0, a)
+	queueAnalysis(a, w, b, player, available, nil, &found, &result, resultMutex)
+	w.Wait()
 
 	var maxMoves int
 	for i := range result {
@@ -408,77 +408,45 @@ func (b Board) Analyze(player int, available [][]int) []*Analysis {
 	}
 	result = newResult
 	if player == 1 {
-		m := &sync.Mutex{}
-		resultWaitGroup := &sync.WaitGroup{}
-		resultWaitGroup.Add(len(result))
+		oppResults := make([][]*Analysis, len(result))
+
 		for i := range result {
 			i := i
-			go func() {
-				var oppPips float64
-				var oppBlots float64
-				var oppHits float64
-				var oppScore float64
-				w := &sync.WaitGroup{}
-				w.Add(21)
-				for j := 0; j < 21; j++ {
-					j := j
-					go func() {
-						check := rollProbabilities[j]
-						bc := Board{}
-						bc = result[i].Board
-						bc[SpaceRoll1], bc[SpaceRoll2] = int8(check.Roll1), int8(check.Roll2)
-						if int8(check.Roll1) == int8(check.Roll2) {
-							bc[SpaceRoll3], bc[SpaceRoll4] = int8(check.Roll1), int8(check.Roll2)
-						}
-						opponentAvailable := bc.Available(2)
-						if len(opponentAvailable) == 0 {
-							evaluation := bc.Evaluation(2, 0, nil)
-							m.Lock()
-							oppPips += float64(evaluation.Pips) * check.Chance
-							oppBlots += float64(evaluation.Blots) * check.Chance
-							oppHits += float64(evaluation.Hits) * check.Chance
-							oppScore += float64(evaluation.PlayerScore) * check.Chance
-							m.Unlock()
-							w.Done()
-							return
-						}
-						result2 := make([]*Analysis, 0, 128)
-						bc._analyze(2, 0, opponentAvailable, nil, &result2, &sync.Mutex{})
-						var averagePips float64
-						var averageBlots float64
-						var averageHits float64
-						var averageScore float64
-						for _, r := range result2 {
-							averagePips += float64(r.Pips)
-							averageBlots += float64(r.Blots)
-							averageHits += float64(r.Hits)
-							averageScore += r.PlayerScore
-						}
-						averagePips /= float64(len(result2))
-						averageBlots /= float64(len(result2))
-						averageHits /= float64(len(result2))
-						averageScore /= float64(len(result2))
-						m.Lock()
-						oppPips += averagePips * check.Chance
-						oppBlots += averageBlots * check.Chance
-						oppHits += averageHits * check.Chance
-						oppScore += averageScore * check.Chance
-						m.Unlock()
-						w.Done()
-					}()
+			oppResultMutex := &sync.Mutex{}
+			oppResults[i] = make([]*Analysis, 0, bufferSize)
+			for j := 0; j < 21; j++ {
+				j := j
+				check := rollProbabilities[j]
+				bc := Board{}
+				bc = result[i].Board
+				bc[SpaceRoll1], bc[SpaceRoll2] = int8(check.Roll1), int8(check.Roll2)
+				if int8(check.Roll1) == int8(check.Roll2) {
+					bc[SpaceRoll3], bc[SpaceRoll4] = int8(check.Roll1), int8(check.Roll2)
 				}
-				w.Wait()
-				m.Lock()
-				result[i].OppPips = (oppPips / 36)
-				result[i].OppBlots = (oppBlots / 36)
-				result[i].OppHits = (oppHits / 36)
-				result[i].OppScore = (oppScore / 36)
-				result[i].Score = result[i].PlayerScore + result[i].OppScore*WeightOppScore
-				m.Unlock()
-				resultWaitGroup.Done()
-			}()
+				queueAnalysis(a, w, bc, 2, bc.Available(2), nil, &[][][]int{}, &oppResults[i], oppResultMutex)
+			}
 		}
-		resultWaitGroup.Wait()
+		w.Wait()
+
+		for i := range result {
+			var oppPips float64
+			var oppBlots float64
+			var oppHits float64
+			var oppScore float64
+			var count float64
+			for _, r := range oppResults[i] {
+				oppPips += float64(r.Pips)
+				oppBlots += float64(r.Blots)
+				oppHits += float64(r.Hits)
+				oppScore += r.PlayerScore
+				count++
+			}
+			result[i].OppPips = (oppPips / count)
+			result[i].OppBlots = (oppBlots / count)
+			result[i].OppHits = (oppHits / count)
+			result[i].OppScore = (oppScore / count)
+			result[i].Score = result[i].PlayerScore + result[i].OppScore*WeightOppScore
+		}
 	}
 	sort.Slice(result, func(i, j int) bool {
 		return result[i].Score < result[j].Score
@@ -497,6 +465,7 @@ func opponent(player int) int {
 		return 1
 	}
 }
+
 func spaceDiff(from int, to int) int {
 	if from < 0 || from > 27 || to < 0 || to > 27 {
 		return 0
@@ -527,4 +496,65 @@ func spaceDiff(from int, to int) int {
 		return diff * -1
 	}
 	return diff
+}
+
+func movesEqual(a [][]int, b [][]int) bool {
+	l := len(a)
+	if len(b) != l {
+		return false
+	}
+	for _, m := range a {
+		switch m[0] {
+		case SpaceBarPlayer, SpaceBarOpponent:
+			return false
+		}
+		switch m[1] {
+		case SpaceHomePlayer, SpaceHomeOpponent:
+			return false
+		}
+	}
+	switch l {
+	case 0:
+		return true
+	case 1:
+		return a[0][0] == b[0][0] && a[0][1] == b[0][1]
+	case 2:
+		return (a[0][0] == b[0][0] && a[0][1] == b[0][1] && a[1][0] == b[1][0] && a[1][1] == b[1][1]) || // 1, 2
+			(a[0][0] == b[1][0] && a[0][1] == b[1][1] && a[1][0] == b[0][0] && a[1][1] == b[0][1]) // 2, 1
+	case 3:
+		return (a[0][0] == b[0][0] && a[0][1] == b[0][1] && a[1][0] == b[1][0] && a[1][1] == b[1][1] && a[2][0] == b[2][0] && a[2][1] == b[2][1]) || // 1, 2, 3
+			(a[0][0] == b[1][0] && a[0][1] == b[1][1] && a[1][0] == b[2][0] && a[1][1] == b[2][1] && a[2][0] == b[0][0] && a[2][1] == b[0][1]) || // 2, 3, 1
+			(a[0][0] == b[2][0] && a[0][1] == b[2][1] && a[1][0] == b[0][0] && a[1][1] == b[0][1] && a[2][0] == b[1][0] && a[2][1] == b[1][1]) || // 3, 1, 2
+			(a[0][0] == b[0][0] && a[0][1] == b[0][1] && a[1][0] == b[2][0] && a[1][1] == b[2][1] && a[2][0] == b[1][0] && a[2][1] == b[1][1]) || // 1, 3, 2
+			(a[0][0] == b[1][0] && a[0][1] == b[1][1] && a[1][0] == b[0][0] && a[1][1] == b[0][1] && a[2][0] == b[2][0] && a[2][1] == b[2][1]) || // 2, 1, 3
+			(a[0][0] == b[2][0] && a[0][1] == b[2][1] && a[1][0] == b[1][0] && a[1][1] == b[1][1] && a[2][0] == b[0][0] && a[2][1] == b[0][1]) // 3, 2, 1
+	case 4:
+		return (a[0][0] == b[0][0] && a[0][1] == b[0][1] && a[1][0] == b[1][0] && a[1][1] == b[1][1] && a[2][0] == b[2][0] && a[2][1] == b[2][1] && a[3][0] == b[3][0] && a[3][1] == b[3][1]) || // 1,2,3,4
+			(a[0][0] == b[1][0] && a[0][1] == b[1][1] && a[1][0] == b[0][0] && a[1][1] == b[0][1] && a[2][0] == b[2][0] && a[2][1] == b[2][1] && a[3][0] == b[3][0] && a[3][1] == b[3][1]) || // 2,1,3,4
+			(a[0][0] == b[2][0] && a[0][1] == b[2][1] && a[1][0] == b[0][0] && a[1][1] == b[0][1] && a[2][0] == b[1][0] && a[2][1] == b[1][1] && a[3][0] == b[3][0] && a[3][1] == b[3][1]) || // 3,1,2,4
+			(a[0][0] == b[0][0] && a[0][1] == b[0][1] && a[1][0] == b[2][0] && a[1][1] == b[2][1] && a[2][0] == b[1][0] && a[2][1] == b[1][1] && a[3][0] == b[3][0] && a[3][1] == b[3][1]) || // 1,3,2,4
+			(a[0][0] == b[1][0] && a[0][1] == b[1][1] && a[1][0] == b[2][0] && a[1][1] == b[2][1] && a[2][0] == b[0][0] && a[2][1] == b[0][1] && a[3][0] == b[3][0] && a[3][1] == b[3][1]) || // 2,3,1,4
+			(a[0][0] == b[2][0] && a[0][1] == b[2][1] && a[1][0] == b[1][0] && a[1][1] == b[1][1] && a[2][0] == b[0][0] && a[2][1] == b[0][1] && a[3][0] == b[3][0] && a[3][1] == b[3][1]) || // 3,2,1,4
+			(a[0][0] == b[2][0] && a[0][1] == b[2][1] && a[1][0] == b[1][0] && a[1][1] == b[1][1] && a[2][0] == b[3][0] && a[2][1] == b[3][1] && a[3][0] == b[0][0] && a[3][1] == b[0][1]) || // 3,2,4,1
+			(a[0][0] == b[1][0] && a[0][1] == b[1][1] && a[1][0] == b[2][0] && a[1][1] == b[2][1] && a[2][0] == b[3][0] && a[2][1] == b[3][1] && a[3][0] == b[0][0] && a[3][1] == b[0][1]) || // 2,3,4,1
+			(a[0][0] == b[3][0] && a[0][1] == b[3][1] && a[1][0] == b[2][0] && a[1][1] == b[2][1] && a[2][0] == b[1][0] && a[2][1] == b[1][1] && a[3][0] == b[0][0] && a[3][1] == b[0][1]) || // 4,3,2,1
+			(a[0][0] == b[2][0] && a[0][1] == b[2][1] && a[1][0] == b[3][0] && a[1][1] == b[3][1] && a[2][0] == b[1][0] && a[2][1] == b[1][1] && a[3][0] == b[0][0] && a[3][1] == b[0][1]) || // 3,4,2,1
+			(a[0][0] == b[1][0] && a[0][1] == b[1][1] && a[1][0] == b[3][0] && a[1][1] == b[3][1] && a[2][0] == b[2][0] && a[2][1] == b[2][1] && a[3][0] == b[0][0] && a[3][1] == b[0][1]) || // 2,4,3,1
+			(a[0][0] == b[3][0] && a[0][1] == b[3][1] && a[1][0] == b[1][0] && a[1][1] == b[1][1] && a[2][0] == b[2][0] && a[2][1] == b[2][1] && a[3][0] == b[0][0] && a[3][1] == b[0][1]) || // 4,2,3,1
+			(a[0][0] == b[3][0] && a[0][1] == b[3][1] && a[1][0] == b[0][0] && a[1][1] == b[0][1] && a[2][0] == b[2][0] && a[2][1] == b[2][1] && a[3][0] == b[1][0] && a[3][1] == b[1][1]) || // 4,1,3,2
+			(a[0][0] == b[0][0] && a[0][1] == b[0][1] && a[1][0] == b[3][0] && a[1][1] == b[3][1] && a[2][0] == b[2][0] && a[2][1] == b[2][1] && a[3][0] == b[1][0] && a[3][1] == b[1][1]) || // 1,4,3,2
+			(a[0][0] == b[2][0] && a[0][1] == b[2][1] && a[1][0] == b[3][0] && a[1][1] == b[3][1] && a[2][0] == b[0][0] && a[2][1] == b[0][1] && a[3][0] == b[1][0] && a[3][1] == b[1][1]) || // 3,4,1,2
+			(a[0][0] == b[3][0] && a[0][1] == b[3][1] && a[1][0] == b[2][0] && a[1][1] == b[2][1] && a[2][0] == b[0][0] && a[2][1] == b[0][1] && a[3][0] == b[1][0] && a[3][1] == b[1][1]) || // 4,3,1,2
+			(a[0][0] == b[0][0] && a[0][1] == b[0][1] && a[1][0] == b[2][0] && a[1][1] == b[2][1] && a[2][0] == b[3][0] && a[2][1] == b[3][1] && a[3][0] == b[1][0] && a[3][1] == b[1][1]) || // 1,3,4,2
+			(a[0][0] == b[2][0] && a[0][1] == b[2][1] && a[1][0] == b[0][0] && a[1][1] == b[0][1] && a[2][0] == b[3][0] && a[2][1] == b[3][1] && a[3][0] == b[1][0] && a[3][1] == b[1][1]) || // 3,1,4,2
+			(a[0][0] == b[1][0] && a[0][1] == b[1][1] && a[1][0] == b[0][0] && a[1][1] == b[0][1] && a[2][0] == b[3][0] && a[2][1] == b[3][1] && a[3][0] == b[2][0] && a[3][1] == b[2][1]) || // 2,1,4,3
+			(a[0][0] == b[0][0] && a[0][1] == b[0][1] && a[1][0] == b[1][0] && a[1][1] == b[1][1] && a[2][0] == b[3][0] && a[2][1] == b[3][1] && a[3][0] == b[2][0] && a[3][1] == b[2][1]) || // 1,2,4,3
+			(a[0][0] == b[3][0] && a[0][1] == b[3][1] && a[1][0] == b[1][0] && a[1][1] == b[1][1] && a[2][0] == b[0][0] && a[2][1] == b[0][1] && a[3][0] == b[2][0] && a[3][1] == b[2][1]) || // 4,2,1,3
+			(a[0][0] == b[1][0] && a[0][1] == b[1][1] && a[1][0] == b[3][0] && a[1][1] == b[3][1] && a[2][0] == b[0][0] && a[2][1] == b[0][1] && a[3][0] == b[2][0] && a[3][1] == b[2][1]) || // 2,4,1,3
+			(a[0][0] == b[0][0] && a[0][1] == b[0][1] && a[1][0] == b[3][0] && a[1][1] == b[3][1] && a[2][0] == b[1][0] && a[2][1] == b[1][1] && a[3][0] == b[2][0] && a[3][1] == b[2][1]) || // 1,4,2,3
+			(a[0][0] == b[3][0] && a[0][1] == b[3][1] && a[1][0] == b[0][0] && a[1][1] == b[0][1] && a[2][0] == b[1][0] && a[2][1] == b[1][1] && a[3][0] == b[2][0] && a[3][1] == b[2][1]) // 4,1,2,3
+	default:
+		log.Panicf("more than 4 moves were provided: %+v %+v", a, b)
+		return false
+	}
 }

@@ -9,16 +9,28 @@ func TestBoard(t *testing.T) {
 	b := NewBoard()
 	b[SpaceRoll1] = 1
 	b[SpaceRoll2] = 2
-	b = b.Move(24, 23, 1)
-	got, expected := b[23], int8(1)
-	if got != expected {
-		t.Errorf("unexpected space %d value: expected %d: got %d", 23, expected, got)
-	}
-	got, expected = b[24], 1
+	got, expected := b[24], int8(2)
 	if got != expected {
 		t.Errorf("unexpected space %d value: expected %d: got %d", 24, expected, got)
 	}
 	got, expected = b[22], 0
+	if got != expected {
+		t.Errorf("unexpected space %d value: expected %d: got %d", 22, expected, got)
+	}
+	bc := b.Move(24, 23, 1)
+	got, expected = b[24], int8(2)
+	if got != expected {
+		t.Errorf("unexpected space %d value: expected %d: got %d", 24, expected, got)
+	}
+	got, expected = bc[23], int8(1)
+	if got != expected {
+		t.Errorf("unexpected space %d value: expected %d: got %d", 23, expected, got)
+	}
+	got, expected = bc[24], 1
+	if got != expected {
+		t.Errorf("unexpected space %d value: expected %d: got %d", 24, expected, got)
+	}
+	got, expected = bc[22], 0
 	if got != expected {
 		t.Errorf("unexpected space %d value: expected %d: got %d", 22, expected, got)
 	}
