@@ -336,21 +336,22 @@ func (b Board) Evaluation(player int, hitScore int, moves [][]int) *Analysis {
 
 func queueAnalysis(a *Analysis, w *sync.WaitGroup, b Board, player int, available [][]int, moves [][]int, found *[][][]int, result *[]*Analysis, resultMutex *sync.Mutex) {
 	var hs int
-	resultMutex.Lock()
-QUEUE:
 	for _, move := range available {
 		move := move
-		newMoves := append(append([][]int{}, moves...), move)
-
-		for _, f := range *found {
-			if movesEqual(f, newMoves) {
-				continue QUEUE
-			}
-		}
-		*found = append(*found, newMoves)
-
-		w.Add(1)
 		go func() {
+			newMoves := append(append([][]int{}, moves...), move)
+
+			resultMutex.Lock()
+			for _, f := range *found {
+				if movesEqual(f, newMoves) {
+					resultMutex.Unlock()
+					w.Done()
+					return
+				}
+			}
+			*found = append(*found, newMoves)
+			resultMutex.Unlock()
+
 			checkers := b.Checkers(move[1], opponent(player))
 			hs = 0
 			if checkers == 1 {
@@ -360,6 +361,7 @@ QUEUE:
 					hs = 25 - move[1]
 				}
 			}
+
 			a := &Analysis{
 				Board:    b.Move(move[0], move[1], player).UseRoll(move[0], move[1], player),
 				Moves:    newMoves,
@@ -367,14 +369,17 @@ QUEUE:
 				hitScore: hs,
 			}
 			a.Board.evaluate(player, hs, a)
-			queueAnalysis(a, w, a.Board, player, a.Board.Available(player), a.Moves, found, result, resultMutex)
+
+			available := a.Board.Available(player)
+			w.Add(len(available))
+			queueAnalysis(a, w, a.Board, player, available, a.Moves, found, result, resultMutex)
+
 			resultMutex.Lock()
 			*result = append(*result, a)
 			resultMutex.Unlock()
 			w.Done()
 		}()
 	}
-	resultMutex.Unlock()
 }
 
 func (b Board) Analyze(player int, available [][]int) []*Analysis {
@@ -390,6 +395,8 @@ func (b Board) Analyze(player int, available [][]int) []*Analysis {
 
 	a := &Analysis{}
 	b.evaluate(player, 0, a)
+
+	w.Add(len(available))
 	queueAnalysis(a, w, b, player, available, nil, &found, &result, resultMutex)
 	w.Wait()
 
@@ -409,21 +416,26 @@ func (b Board) Analyze(player int, available [][]int) []*Analysis {
 	result = newResult
 	if player == 1 {
 		oppResults := make([][]*Analysis, len(result))
-
+		w.Add(len(result) * 21)
 		for i := range result {
 			i := i
 			oppResultMutex := &sync.Mutex{}
 			oppResults[i] = make([]*Analysis, 0, bufferSize)
 			for j := 0; j < 21; j++ {
 				j := j
-				check := rollProbabilities[j]
-				bc := Board{}
-				bc = result[i].Board
-				bc[SpaceRoll1], bc[SpaceRoll2] = int8(check.Roll1), int8(check.Roll2)
-				if int8(check.Roll1) == int8(check.Roll2) {
-					bc[SpaceRoll3], bc[SpaceRoll4] = int8(check.Roll1), int8(check.Roll2)
-				}
-				queueAnalysis(a, w, bc, 2, bc.Available(2), nil, &[][][]int{}, &oppResults[i], oppResultMutex)
+				go func() {
+					check := rollProbabilities[j]
+					bc := Board{}
+					bc = result[i].Board
+					bc[SpaceRoll1], bc[SpaceRoll2] = int8(check.Roll1), int8(check.Roll2)
+					if int8(check.Roll1) == int8(check.Roll2) {
+						bc[SpaceRoll3], bc[SpaceRoll4] = int8(check.Roll1), int8(check.Roll2)
+					}
+					available := bc.Available(2)
+					w.Add(len(available))
+					queueAnalysis(a, w, bc, 2, available, nil, &[][][]int{}, &oppResults[i], oppResultMutex)
+					w.Done()
+				}()
 			}
 		}
 		w.Wait()
