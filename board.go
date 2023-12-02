@@ -265,7 +265,9 @@ func (b Board) Past(player int) bool {
 	var playerFirst, opponentLast int
 	for space := 1; space < 25; space++ {
 		v := b[space]
-		if v > 0 {
+		if v == 0 {
+			continue
+		} else if v > 0 {
 			if player == 1 && playerFirst == 0 {
 				playerFirst = space
 				if opponentLast != 0 {
@@ -298,49 +300,43 @@ func (b Board) Past(player int) bool {
 	}
 }
 
-func (b Board) Pips(player int) int {
-	var pips float64
-	var spaceValue float64
+func (b Board) spaceValue(player int, space int) int {
+	var spaceValue int
 	if player == 1 {
-		pips += float64(b.Checkers(SpaceBarPlayer, player)) * 25
+		spaceValue = space*2 + 7
+		if space > 6 {
+			spaceValue += 7
+		}
 	} else {
-		pips += float64(b.Checkers(SpaceBarOpponent, player)) * 25
+		spaceValue = (25-space)*2 + 7
+		if space < 19 {
+			spaceValue += 7
+		}
+	}
+	return spaceValue
+}
+
+func (b Board) Pips(player int) int {
+	var pips int
+	if player == 1 {
+		pips += int(b.Checkers(SpaceBarPlayer, player))*50 + 14
+	} else {
+		pips += int(b.Checkers(SpaceBarOpponent, player))*50 + 14
 	}
 	for space := 1; space < 25; space++ {
-		if player == 1 {
-			spaceValue = float64(space)
-			if space <= 6 {
-				spaceValue /= 4
-			} else {
-				spaceValue += 6
-			}
-		} else {
-			spaceValue = float64(25 - space)
-			if space >= 19 {
-				spaceValue /= 4
-			} else {
-				spaceValue += 6
-			}
-		}
-		pips += float64(b.Checkers(space, player)) * spaceValue
+		pips += int(b.Checkers(space, player)) * b.spaceValue(space, player)
 	}
-	return int(pips)
+	return pips
 }
 
 func (b Board) Blots(player int) int {
 	var pips int
-	var spaceValue int
 	for space := 1; space < 25; space++ {
 		checkers := b.Checkers(space, player)
 		if checkers != 1 {
 			continue
 		}
-		if player == 1 {
-			spaceValue = 25 - space
-		} else {
-			spaceValue = space
-		}
-		pips += int(checkers) * spaceValue
+		pips += int(checkers) * b.spaceValue(space, player)
 	}
 	return pips
 }
@@ -355,7 +351,7 @@ func (b Board) evaluate(player int, hitScore int, a *Analysis) {
 	pips := b.Pips(player)
 	score := float64(pips)
 	var blots int
-	if !a.past {
+	if !a.Past {
 		blots := b.Blots(player)
 		score += float64(blots)*WeightBlot + float64(hitScore)*WeightHit
 	}
@@ -363,22 +359,21 @@ func (b Board) evaluate(player int, hitScore int, a *Analysis) {
 	a.Blots = blots
 	a.Hits = hitScore
 	a.PlayerScore = score
+	a.hitScore = hitScore
 }
 
 func (b Board) Evaluation(player int, hitScore int, moves [][]int) *Analysis {
 	past := b.Past(player)
 	a := &Analysis{
-		Board:    b,
-		Moves:    moves,
-		hitScore: hitScore,
-		past:     past,
+		Board: b,
+		Moves: moves,
+		Past:  past,
 	}
 	b.evaluate(player, hitScore, a)
 	return a
 }
 
 func queueAnalysis(a *Analysis, w *sync.WaitGroup, b Board, player int, available [][]int, moves [][]int, found *[][][]int, result *[]*Analysis, resultMutex *sync.Mutex) {
-	var hs int
 	for _, move := range available {
 		move := move
 		go func() {
@@ -396,20 +391,15 @@ func queueAnalysis(a *Analysis, w *sync.WaitGroup, b Board, player int, availabl
 			resultMutex.Unlock()
 
 			checkers := b.Checkers(move[1], opponent(player))
-			hs = 0
+			hs := a.hitScore
 			if checkers == 1 {
-				if player == 1 {
-					hs = move[1]
-				} else {
-					hs = 25 - move[1]
-				}
+				hs += b.spaceValue(player, move[1])
 			}
 
 			a := &Analysis{
-				Board:    b.Move(move[0], move[1], player).UseRoll(move[0], move[1], player),
-				Moves:    newMoves,
-				player:   player,
-				hitScore: hs,
+				Board: b.Move(move[0], move[1], player).UseRoll(move[0], move[1], player),
+				Moves: newMoves,
+				Past:  a.Past,
 			}
 			a.Board.evaluate(player, hs, a)
 
@@ -437,7 +427,7 @@ func (b Board) Analyze(player int, available [][]int) []*Analysis {
 	resultMutex := &sync.Mutex{}
 
 	a := &Analysis{
-		past: b.Past(player),
+		Past: b.Past(player),
 	}
 	b.evaluate(player, 0, a)
 
@@ -459,7 +449,7 @@ func (b Board) Analyze(player int, available [][]int) []*Analysis {
 		}
 	}
 	result = newResult
-	if player == 1 {
+	if player == 1 && !a.Past {
 		oppResults := make([][]*Analysis, len(result))
 		w.Add(len(result) * 21)
 		for i := range result {
@@ -478,7 +468,7 @@ func (b Board) Analyze(player int, available [][]int) []*Analysis {
 					}
 					available := bc.Available(2)
 					a := &Analysis{
-						past: b.Past(player),
+						Past: b.Past(2),
 					}
 					w.Add(len(available))
 					queueAnalysis(a, w, bc, 2, available, nil, &[][][]int{}, &oppResults[i], oppResultMutex)
@@ -501,15 +491,19 @@ func (b Board) Analyze(player int, available [][]int) []*Analysis {
 				oppScore += r.PlayerScore
 				count++
 			}
-			score := result[i].PlayerScore
-			if !math.IsNaN(oppScore) {
-				score += result[i].OppScore * WeightOppScore
-			}
 			result[i].OppPips = (oppPips / count)
 			result[i].OppBlots = (oppBlots / count)
 			result[i].OppHits = (oppHits / count)
 			result[i].OppScore = (oppScore / count)
+			score := result[i].PlayerScore
+			if !math.IsNaN(oppScore) {
+				score += result[i].OppScore * WeightOppScore
+			}
 			result[i].Score = score
+		}
+	} else {
+		for i := range result {
+			result[i].Score = result[i].PlayerScore
 		}
 	}
 	sort.Slice(result, func(i, j int) bool {

@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestBoard(t *testing.T) {
+func TestMove(t *testing.T) {
 	b := NewBoard()
 	b[SpaceRoll1] = 1
 	b[SpaceRoll2] = 2
@@ -33,6 +33,28 @@ func TestBoard(t *testing.T) {
 	got, expected = bc[22], 0
 	if got != expected {
 		t.Errorf("unexpected space %d value: expected %d: got %d", 22, expected, got)
+	}
+}
+
+func TestPast(t *testing.T) {
+	b := NewBoard()
+	got, expected := b.Past(1), false
+	if got != expected {
+		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
+	}
+	got, expected = b.Past(2), false
+	if got != expected {
+		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
+	}
+
+	b = Board{7, 2, 2, 4, 0, -2, 0, 0, -1, 0, -1, 0, 0, 0, 0, 0, -1, -1, 0, -4, 0, -2, -1, -1, -1, 0, 0, 0, 6, 2, 0, 0}
+	got, expected = b.Past(1), true
+	if got != expected {
+		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
+	}
+	got, expected = b.Past(2), true
+	if got != expected {
+		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
 	}
 }
 
