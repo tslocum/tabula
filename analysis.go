@@ -21,6 +21,7 @@ type Analysis struct {
 
 	player   int
 	hitScore int
+	past     bool
 }
 
 func (a *Analysis) String() string {
