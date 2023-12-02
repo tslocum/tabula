@@ -2,6 +2,7 @@ package tabula
 
 import (
 	"log"
+	"math"
 	"sort"
 	"sync"
 )
@@ -500,11 +501,15 @@ func (b Board) Analyze(player int, available [][]int) []*Analysis {
 				oppScore += r.PlayerScore
 				count++
 			}
+			score := result[i].PlayerScore
+			if !math.IsNaN(oppScore) {
+				score += result[i].OppScore * WeightOppScore
+			}
 			result[i].OppPips = (oppPips / count)
 			result[i].OppBlots = (oppBlots / count)
 			result[i].OppHits = (oppHits / count)
 			result[i].OppScore = (oppScore / count)
-			result[i].Score = result[i].PlayerScore + result[i].OppScore*WeightOppScore
+			result[i].Score = score
 		}
 	}
 	sort.Slice(result, func(i, j int) bool {
