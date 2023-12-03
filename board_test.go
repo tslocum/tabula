@@ -47,6 +47,26 @@ func TestPast(t *testing.T) {
 		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
 	}
 
+	b = Board{0, 1, 3, -1, 0, -1, 0, -2, 0, 0, -1, 0, -3, 3, 0, 0, 0, -2, 0, -5, 4, 0, 2, 2, 0, 0, 0, 0, 5, 5, 5, 5}
+	got, expected = b.Past(1), false
+	if got != expected {
+		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
+	}
+	got, expected = b.Past(2), false
+	if got != expected {
+		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
+	}
+
+	b = Board{0, -1, 1, -2, -1, 2, 4, 0, 0, 0, 0, 0, -1, 2, -1, 0, 0, -1, 3, -3, 0, 3, -1, -3, -1, 0, 0, 0, 4, 3, 0, 0}
+	got, expected = b.Past(1), false
+	if got != expected {
+		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
+	}
+	got, expected = b.Past(2), false
+	if got != expected {
+		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
+	}
+
 	b = Board{7, 2, 2, 4, 0, -2, 0, 0, -1, 0, -1, 0, 0, 0, 0, 0, -1, -1, 0, -4, 0, -2, -1, -1, -1, 0, 0, 0, 6, 2, 0, 0}
 	got, expected = b.Past(1), true
 	if got != expected {

@@ -10,7 +10,7 @@ import (
 var (
 	WeightBlot     = 1.0
 	WeightHit      = -1.0
-	WeightOppScore = -0.5
+	WeightOppScore = -3.0
 )
 
 const (
@@ -98,12 +98,12 @@ func (b Board) Move(from int, to int, player int) Board {
 }
 
 // Checkers returns the number of checkers at a space. It always returns a positive number.
-func (b Board) Checkers(space int, player int) int8 {
+func (b Board) Checkers(player int, space int) int {
 	v := b[space]
 	if player == 1 && v > 0 {
-		return v
+		return int(v)
 	} else if player == 2 && v < 0 {
-		return v * -1
+		return int(v * -1)
 	}
 	return 0
 }
@@ -117,13 +117,13 @@ func (b Board) MayBearOff(player int) bool {
 		homeEnd = 24
 		barSpace = SpaceBarOpponent
 	}
-	if b.Checkers(barSpace, player) != 0 {
+	if b.Checkers(player, barSpace) != 0 {
 		return false
 	}
 	for space := 1; space < 25; space++ {
 		if space >= homeStart && space <= homeEnd {
 			continue
-		} else if b.Checkers(space, player) != 0 {
+		} else if b.Checkers(player, space) != 0 {
 			return false
 		}
 	}
@@ -145,7 +145,7 @@ func (b Board) HaveRoll(from int, to int, player int) bool {
 	if b.MayBearOff(player) {
 		allowGreater := true
 		for checkSpace := int8(0); checkSpace < 6-delta; checkSpace++ {
-			if b.Checkers(playerHomeEnd+int(checkSpace)*playerDelta, player) != 0 {
+			if b.Checkers(player, playerHomeEnd+int(checkSpace)*playerDelta) != 0 {
 				allowGreater = false
 				break
 			}
@@ -174,7 +174,7 @@ func (b Board) UseRoll(from int, to int, player int) Board {
 	if b.MayBearOff(player) {
 		allowGreater = true
 		for checkSpace := int8(0); checkSpace < 6-delta; checkSpace++ {
-			if b.Checkers(playerHomeEnd+int(checkSpace)*playerDelta, player) != 0 {
+			if b.Checkers(player, playerHomeEnd+int(checkSpace)*playerDelta) != 0 {
 				allowGreater = false
 				break
 			}
@@ -224,7 +224,7 @@ func (b Board) Available(player int) [][]int {
 	onBar := b[barSpace] != 0
 	var moves [][]int
 	for from := 0; from < 28; from++ {
-		if from == SpaceHomePlayer || from == SpaceHomeOpponent || from == opponentBarSpace || b.Checkers(from, player) == 0 || (onBar && from != barSpace) {
+		if from == SpaceHomePlayer || from == SpaceHomeOpponent || from == opponentBarSpace || b.Checkers(player, from) == 0 || (onBar && from != barSpace) {
 			continue
 		}
 		if player == 1 {
@@ -268,28 +268,16 @@ func (b Board) Past(player int) bool {
 		if v == 0 {
 			continue
 		} else if v > 0 {
-			if player == 1 && playerFirst == 0 {
+			if player == 1 && space > playerFirst {
 				playerFirst = space
-				if opponentLast != 0 {
-					break
-				}
-			} else if player == 2 && opponentLast == 0 {
+			} else if player == 2 && space > opponentLast {
 				opponentLast = space
-				if playerFirst != 0 {
-					break
-				}
 			}
 		} else {
 			if player == 1 && opponentLast == 0 {
 				opponentLast = space
-				if playerFirst != 0 {
-					break
-				}
 			} else if player == 2 && playerFirst == 0 {
 				playerFirst = space
-				if opponentLast != 0 {
-					break
-				}
 			}
 		}
 	}
@@ -300,31 +288,19 @@ func (b Board) Past(player int) bool {
 	}
 }
 
-func (b Board) spaceValue(player int, space int) int {
-	var spaceValue int
-	if player == 1 {
-		spaceValue = space*2 + 7
-		if space > 6 {
-			spaceValue += 7
-		}
-	} else {
-		spaceValue = (25-space)*2 + 7
-		if space < 19 {
-			spaceValue += 7
-		}
-	}
-	return spaceValue
-}
-
 func (b Board) Pips(player int) int {
 	var pips int
 	if player == 1 {
-		pips += int(b.Checkers(SpaceBarPlayer, player))*50 + 14
+		pips += int(b.Checkers(player, SpaceBarPlayer)) * (25 + 12)
 	} else {
-		pips += int(b.Checkers(SpaceBarOpponent, player))*50 + 14
+		pips += int(b.Checkers(player, SpaceBarOpponent)) * (25 + 12)
 	}
 	for space := 1; space < 25; space++ {
-		pips += int(b.Checkers(space, player)) * b.spaceValue(space, player)
+		v := spaceValue(player, space) + 6
+		if (player == 1 && space > 6) || (player == 2 && space < 19) {
+			v += 6
+		}
+		pips += int(b.Checkers(player, space)) * v
 	}
 	return pips
 }
@@ -332,11 +308,11 @@ func (b Board) Pips(player int) int {
 func (b Board) Blots(player int) int {
 	var pips int
 	for space := 1; space < 25; space++ {
-		checkers := b.Checkers(space, player)
+		checkers := b.Checkers(player, space)
 		if checkers != 1 {
 			continue
 		}
-		pips += int(checkers) * b.spaceValue(space, player)
+		pips += int(checkers) * spaceValue(player, space)
 	}
 	return pips
 }
@@ -374,6 +350,7 @@ func (b Board) Evaluation(player int, hitScore int, moves [][]int) *Analysis {
 }
 
 func queueAnalysis(a *Analysis, w *sync.WaitGroup, b Board, player int, available [][]int, moves [][]int, found *[][][]int, result *[]*Analysis, resultMutex *sync.Mutex) {
+	startingHitScore := a.hitScore
 	for _, move := range available {
 		move := move
 		go func() {
@@ -390,10 +367,11 @@ func queueAnalysis(a *Analysis, w *sync.WaitGroup, b Board, player int, availabl
 			*found = append(*found, newMoves)
 			resultMutex.Unlock()
 
-			checkers := b.Checkers(move[1], opponent(player))
-			hs := a.hitScore
+			o := opponent(player)
+			checkers := b.Checkers(o, move[1])
+			hs := startingHitScore
 			if checkers == 1 {
-				hs += b.spaceValue(player, move[1])
+				hs += spaceValue(o, move[1])
 			}
 
 			a := &Analysis{
@@ -521,6 +499,14 @@ func opponent(player int) int {
 		return 2
 	} else {
 		return 1
+	}
+}
+
+func spaceValue(player int, space int) int {
+	if player == 1 {
+		return space
+	} else {
+		return 25 - space
 	}
 }
 
