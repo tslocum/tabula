@@ -8,9 +8,9 @@ import (
 )
 
 var (
-	WeightBlot     = 1.0
-	WeightHit      = -1.0
-	WeightOppScore = -3.0
+	WeightBlot     = 2.0
+	WeightHit      = -2.0
+	WeightOppScore = -1.0
 )
 
 const (
@@ -258,6 +258,7 @@ func (b Board) Available(player int) [][]int {
 	return moves
 }
 
+// TODO no player argument needed
 func (b Board) Past(player int) bool {
 	if b[SpaceBarPlayer] != 0 || b[SpaceBarOpponent] != 0 {
 		return false
@@ -306,13 +307,14 @@ func (b Board) Pips(player int) int {
 }
 
 func (b Board) Blots(player int) int {
+	o := opponent(player)
 	var pips int
 	for space := 1; space < 25; space++ {
 		checkers := b.Checkers(player, space)
 		if checkers != 1 {
 			continue
 		}
-		pips += int(checkers) * spaceValue(player, space)
+		pips += int(checkers) * spaceValue(o, space)
 	}
 	return pips
 }
@@ -446,7 +448,7 @@ func (b Board) Analyze(player int, available [][]int) []*Analysis {
 					}
 					available := bc.Available(2)
 					a := &Analysis{
-						Past: b.Past(2),
+						Past: a.Past,
 					}
 					w.Add(len(available))
 					queueAnalysis(a, w, bc, 2, available, nil, &[][][]int{}, &oppResults[i], oppResultMutex)

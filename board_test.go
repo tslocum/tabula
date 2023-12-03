@@ -78,6 +78,40 @@ func TestPast(t *testing.T) {
 	}
 }
 
+func TestBlots(t *testing.T) {
+	b := NewBoard()
+	got, expected := b.Blots(1), 0
+	if got != expected {
+		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
+	}
+	got, expected = b.Blots(2), 0
+	if got != expected {
+		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
+	}
+
+	b = b.Move(24, 23, 1)
+
+	got, expected = b.Blots(1), 3
+	if got != expected {
+		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
+	}
+	got, expected = b.Blots(2), 0
+	if got != expected {
+		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
+	}
+
+	b = b.Move(1, 2, 2)
+
+	got, expected = b.Blots(1), 3
+	if got != expected {
+		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
+	}
+	got, expected = b.Blots(2), 3
+	if got != expected {
+		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
+	}
+}
+
 func BenchmarkAvailable(b *testing.B) {
 	type testCase struct {
 		roll1, roll2, roll3, roll4 int8
