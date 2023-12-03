@@ -8,9 +8,9 @@ import (
 )
 
 var (
-	WeightBlot     = 2.0
-	WeightHit      = -2.0
-	WeightOppScore = -1.0
+	WeightBlot     = 1.5
+	WeightHit      = -1.5
+	WeightOppScore = -0.25
 )
 
 const (
@@ -292,16 +292,12 @@ func (b Board) Past(player int) bool {
 func (b Board) Pips(player int) int {
 	var pips int
 	if player == 1 {
-		pips += int(b.Checkers(player, SpaceBarPlayer)) * (25 + 12)
+		pips += int(b.Checkers(player, SpaceBarPlayer)) * (50 + 12)
 	} else {
-		pips += int(b.Checkers(player, SpaceBarOpponent)) * (25 + 12)
+		pips += int(b.Checkers(player, SpaceBarOpponent)) * (50 + 12)
 	}
 	for space := 1; space < 25; space++ {
-		v := spaceValue(player, space) + 6
-		if (player == 1 && space > 6) || (player == 2 && space < 19) {
-			v += 6
-		}
-		pips += int(b.Checkers(player, space)) * v
+		pips += int(b.Checkers(player, space)) * pseudoPips(player, space)
 	}
 	return pips
 }
@@ -314,7 +310,7 @@ func (b Board) Blots(player int) int {
 		if checkers != 1 {
 			continue
 		}
-		pips += int(checkers) * spaceValue(o, space)
+		pips += int(checkers) * pseudoPips(o, space)
 	}
 	return pips
 }
@@ -373,7 +369,7 @@ func queueAnalysis(a *Analysis, w *sync.WaitGroup, b Board, player int, availabl
 			checkers := b.Checkers(o, move[1])
 			hs := startingHitScore
 			if checkers == 1 {
-				hs += spaceValue(o, move[1])
+				hs += pseudoPips(o, move[1])
 			}
 
 			a := &Analysis{
@@ -510,6 +506,14 @@ func spaceValue(player int, space int) int {
 	} else {
 		return 25 - space
 	}
+}
+
+func pseudoPips(player int, space int) int {
+	v := spaceValue(player, space)*2 + 6
+	if (player == 1 && space > 6) || (player == 2 && space < 19) {
+		v += 6
+	}
+	return v
 }
 
 func spaceDiff(from int, to int) int {
