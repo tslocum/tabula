@@ -501,7 +501,9 @@ func opponent(player int) int {
 }
 
 func spaceValue(player int, space int) int {
-	if player == 1 {
+	if space == SpaceBarPlayer || space == SpaceBarOpponent {
+		return 25
+	} else if player == 1 {
 		return space
 	} else {
 		return 25 - space
