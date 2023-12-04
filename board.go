@@ -8,9 +8,9 @@ import (
 )
 
 var (
-	WeightBlot     = 1.5
-	WeightHit      = -1.5
-	WeightOppScore = -0.25
+	WeightBlot     = 0.25
+	WeightHit      = -0.225
+	WeightOppScore = -0.55
 )
 
 const (
@@ -313,12 +313,6 @@ func (b Board) Blots(player int) int {
 		pips += int(checkers) * pseudoPips(o, space)
 	}
 	return pips
-}
-
-func (b Board) Score(player int, hitScore int) float64 {
-	pips := b.Pips(player)
-	blots := b.Blots(player)
-	return float64(pips) + float64(blots)*WeightBlot + float64(hitScore)*WeightHit
 }
 
 func (b Board) evaluate(player int, hitScore int, a *Analysis) {
