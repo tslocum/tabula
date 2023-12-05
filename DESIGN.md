@@ -24,25 +24,22 @@ the game state is scored as follows:
 score = pips*pipsWeight
 ```
 
-All scoring calculations use pseudopips. Space value is defined as what the
-term 'pips' would normally refer to. The value of a space is the same as the
-space number as it would appear to the player being scored.
+All scoring calculations use pseudopips.
 
-A pseudopip value is assigned to each board space as follows:
+Space value is defined as what the term 'pips' would normally refer to for a
+given space. The value of a space isthe same as the space number as it would
+appear to the player being scored.
 
-- Each space is worth 6 pseudopips plus double the space value.
-- Spaces outside of the player's home board are worth an additional 6 pseudopips.
+Base value is 12 for spaces within the home board of the player being scored.
+All other spaces have a base value of 36. The base values incentivize
+prioritizing moving all checkers into the player's home board, and subsequently
+bearing checkers off instead of moving them.
 
-Space 2 (from the perspective of the player being scored) is therefore worth 10
-pseudopips, space 6 is worth 18, space 7 is worth 26 and the bar space is worth 62.
+The pseudopip value of each space is calculated as follows:
 
-The base value of 6 incentivizes bearing pieces off instead of moving them
-when possible. Adding double the space value incentivizes prioritizing moving
-checkers that are further away from home.
-
-Adding an additional 6 pseudopips to checkers outside of the player's home board
-incentivizes moving all checkers into the home board before moving any checkers
-within the home board.
+```
+pseudoPips = baseValue(space) + spaceValue(space) + exp(spaceValue(space)*0.2)*2
+```
 
 ### Pips
 
@@ -70,7 +67,7 @@ Combinations that are logically equal are skipped.
 Score the resulting gamestate after making each combination of legal moves.
 This is the player score.
 
-### Step 2: Simulate all opponent dice rolls and opponent moves that may follow the above simulations
+### Step 2: Simulate all possible opponent dice rolls and opponent moves following the above simulations
 
 Copy each resulting gamestate from step one and simulate all 21 possible dice
 roll combinations and resulting legal moves.
@@ -97,3 +94,35 @@ score = playerScore
 
 Each combination is sorted by its overall score. The combination with the
 lowest overall score is the best move.
+
+## Pseudopip values
+
+The following table lists pseudopip value of each space. Space 25 is the bar.
+
+| Space | Pseudopips |
+| --- | --- |
+| 1 | 15 |
+| 2 | 16 |
+| 3 | 17 |
+| 4 | 20 |
+| 5 | 21 |
+| 6 | 24 |
+| 7 | 51 |
+| 8 | 52 |
+| 9 | 57 |
+| 10 | 60 |
+| 11 | 65 |
+| 12 | 70 |
+| 13 | 75 |
+| 14 | 82 |
+| 15 | 91 |
+| 16 | 100 |
+| 17 | 111 |
+| 18 | 126 |
+| 19 | 143 |
+| 20 | 164 |
+| 21 | 189 |
+| 22 | 220 |
+| 23 | 257 |
+| 24 | 302 |
+| 25 | 357 |

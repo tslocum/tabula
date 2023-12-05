@@ -8,9 +8,9 @@ import (
 )
 
 var (
-	WeightBlot     = 0.25
-	WeightHit      = -0.225
-	WeightOppScore = -0.55
+	WeightBlot     = 0.6
+	WeightHit      = -0.3
+	WeightOppScore = -3.5
 )
 
 const (
@@ -292,9 +292,9 @@ func (b Board) Past(player int) bool {
 func (b Board) Pips(player int) int {
 	var pips int
 	if player == 1 {
-		pips += int(b.Checkers(player, SpaceBarPlayer)) * (50 + 12)
+		pips += int(b.Checkers(player, SpaceBarPlayer)) * pseudoPips(player, SpaceBarPlayer)
 	} else {
-		pips += int(b.Checkers(player, SpaceBarOpponent)) * (50 + 12)
+		pips += int(b.Checkers(player, SpaceBarOpponent)) * pseudoPips(player, SpaceBarOpponent)
 	}
 	for space := 1; space < 25; space++ {
 		pips += int(b.Checkers(player, space)) * pseudoPips(player, space)
@@ -430,8 +430,7 @@ func (b Board) Analyze(player int, available [][]int) []*Analysis {
 				j := j
 				go func() {
 					check := rollProbabilities[j]
-					bc := Board{}
-					bc = result[i].Board
+					bc := result[i].Board
 					bc[SpaceRoll1], bc[SpaceRoll2] = int8(check.Roll1), int8(check.Roll2)
 					if int8(check.Roll1) == int8(check.Roll2) {
 						bc[SpaceRoll3], bc[SpaceRoll4] = int8(check.Roll1), int8(check.Roll2)
@@ -440,6 +439,7 @@ func (b Board) Analyze(player int, available [][]int) []*Analysis {
 					a := &Analysis{
 						Past: a.Past,
 					}
+					bc.evaluate(player, 0, a)
 					w.Add(len(available))
 					queueAnalysis(a, w, bc, 2, available, nil, &[][][]int{}, &oppResults[i], oppResultMutex)
 					w.Done()
@@ -505,9 +505,9 @@ func spaceValue(player int, space int) int {
 }
 
 func pseudoPips(player int, space int) int {
-	v := spaceValue(player, space)*2 + 6
-	if (player == 1 && space > 6) || (player == 2 && space < 19) {
-		v += 6
+	v := 12 + spaceValue(player, space) + int(math.Exp(float64(spaceValue(player, space))*0.2))*2
+	if (player == 1 && (space > 6 || space == SpaceBarPlayer)) || (player == 2 && (space < 19 || space == SpaceBarOpponent)) {
+		v += 24
 	}
 	return v
 }

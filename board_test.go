@@ -82,33 +82,33 @@ func TestBlots(t *testing.T) {
 	b := NewBoard()
 	got, expected := b.Blots(1), 0
 	if got != expected {
-		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
+		t.Errorf("unexpected blots value: expected %v: got %v", expected, got)
 	}
 	got, expected = b.Blots(2), 0
 	if got != expected {
-		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
+		t.Errorf("unexpected blots value: expected %v: got %v", expected, got)
 	}
 
 	b = b.Move(24, 23, 1)
 
-	got, expected = b.Blots(1), 3
+	got, expected = b.Blots(1), 31
 	if got != expected {
-		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
+		t.Errorf("unexpected blots value: expected %v: got %v", expected, got)
 	}
 	got, expected = b.Blots(2), 0
 	if got != expected {
-		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
+		t.Errorf("unexpected blots value: expected %v: got %v", expected, got)
 	}
 
 	b = b.Move(1, 2, 2)
 
-	got, expected = b.Blots(1), 3
+	got, expected = b.Blots(1), 31
 	if got != expected {
-		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
+		t.Errorf("unexpected blots value: expected %v: got %v", expected, got)
 	}
-	got, expected = b.Blots(2), 3
+	got, expected = b.Blots(2), 31
 	if got != expected {
-		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
+		t.Errorf("unexpected blots value: expected %v: got %v", expected, got)
 	}
 }
 
