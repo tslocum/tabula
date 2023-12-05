@@ -80,9 +80,9 @@ func (b Board) Move(from int, to int, player int) Board {
 		if (player == 1 && b[to] == -1) || (player == 2 && b[to] == 1) {
 			b[to] = 0
 			if player == 1 {
-				b[SpaceBarOpponent] -= 1
+				b[SpaceBarOpponent]--
 			} else {
-				b[SpaceBarPlayer] += 1
+				b[SpaceBarPlayer]++
 			}
 		} else if (player == 1 && b[to] < 0) || (player == 2 && b[to] > 0) {
 			b.Print()
@@ -258,8 +258,7 @@ func (b Board) Available(player int) [][]int {
 	return moves
 }
 
-// TODO no player argument needed
-func (b Board) Past(player int) bool {
+func (b Board) Past() bool {
 	if b[SpaceBarPlayer] != 0 || b[SpaceBarOpponent] != 0 {
 		return false
 	}
@@ -269,24 +268,16 @@ func (b Board) Past(player int) bool {
 		if v == 0 {
 			continue
 		} else if v > 0 {
-			if player == 1 && space > playerFirst {
+			if space > playerFirst {
 				playerFirst = space
-			} else if player == 2 && space > opponentLast {
-				opponentLast = space
 			}
 		} else {
-			if player == 1 && opponentLast == 0 {
+			if opponentLast == 0 {
 				opponentLast = space
-			} else if player == 2 && playerFirst == 0 {
-				playerFirst = space
 			}
 		}
 	}
-	if player == 1 {
-		return playerFirst < opponentLast
-	} else {
-		return playerFirst > opponentLast
-	}
+	return playerFirst < opponentLast
 }
 
 func (b Board) Pips(player int) int {
@@ -320,7 +311,7 @@ func (b Board) evaluate(player int, hitScore int, a *Analysis) {
 	score := float64(pips)
 	var blots int
 	if !a.Past {
-		blots := b.Blots(player)
+		blots = b.Blots(player)
 		score += float64(blots)*WeightBlot + float64(hitScore)*WeightHit
 	}
 	a.Pips = pips
@@ -331,11 +322,10 @@ func (b Board) evaluate(player int, hitScore int, a *Analysis) {
 }
 
 func (b Board) Evaluation(player int, hitScore int, moves [][]int) *Analysis {
-	past := b.Past(player)
 	a := &Analysis{
 		Board: b,
 		Moves: moves,
-		Past:  past,
+		Past:  b.Past(),
 	}
 	b.evaluate(player, hitScore, a)
 	return a
@@ -397,7 +387,7 @@ func (b Board) Analyze(player int, available [][]int) []*Analysis {
 	resultMutex := &sync.Mutex{}
 
 	a := &Analysis{
-		Past: b.Past(player),
+		Past: b.Past(),
 	}
 	b.evaluate(player, 0, a)
 
@@ -489,9 +479,8 @@ func (b Board) Print() {
 func opponent(player int) int {
 	if player == 1 {
 		return 2
-	} else {
-		return 1
 	}
+	return 1
 }
 
 func spaceValue(player int, space int) int {

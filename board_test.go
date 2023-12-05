@@ -38,41 +38,25 @@ func TestMove(t *testing.T) {
 
 func TestPast(t *testing.T) {
 	b := NewBoard()
-	got, expected := b.Past(1), false
-	if got != expected {
-		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
-	}
-	got, expected = b.Past(2), false
+	got, expected := b.Past(), false
 	if got != expected {
 		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
 	}
 
 	b = Board{0, 1, 3, -1, 0, -1, 0, -2, 0, 0, -1, 0, -3, 3, 0, 0, 0, -2, 0, -5, 4, 0, 2, 2, 0, 0, 0, 0, 5, 5, 5, 5}
-	got, expected = b.Past(1), false
-	if got != expected {
-		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
-	}
-	got, expected = b.Past(2), false
+	got, expected = b.Past(), false
 	if got != expected {
 		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
 	}
 
 	b = Board{0, -1, 1, -2, -1, 2, 4, 0, 0, 0, 0, 0, -1, 2, -1, 0, 0, -1, 3, -3, 0, 3, -1, -3, -1, 0, 0, 0, 4, 3, 0, 0}
-	got, expected = b.Past(1), false
-	if got != expected {
-		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
-	}
-	got, expected = b.Past(2), false
+	got, expected = b.Past(), false
 	if got != expected {
 		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
 	}
 
 	b = Board{7, 2, 2, 4, 0, -2, 0, 0, -1, 0, -1, 0, 0, 0, 0, 0, -1, -1, 0, -4, 0, -2, -1, -1, -1, 0, 0, 0, 6, 2, 0, 0}
-	got, expected = b.Past(1), true
-	if got != expected {
-		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
-	}
-	got, expected = b.Past(2), true
+	got, expected = b.Past(), true
 	if got != expected {
 		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
 	}
@@ -109,6 +93,24 @@ func TestBlots(t *testing.T) {
 	got, expected = b.Blots(2), 31
 	if got != expected {
 		t.Errorf("unexpected blots value: expected %v: got %v", expected, got)
+	}
+}
+
+func TestAnalyze(t *testing.T) {
+	b := NewBoard()
+	b = b.Move(24, 23, 1)
+	b = b.Move(1, 2, 2)
+	b[SpaceRoll1], b[SpaceRoll2] = 1, 2
+
+	for player := 1; player <= 2; player++ {
+		r := b.Analyze(player, b.Available(player))
+		var blots int
+		for _, r := range r {
+			blots += r.Blots
+		}
+		if blots <= 0 {
+			t.Errorf("expected >0 blots for player %d in results, got %d", player, blots)
+		}
 	}
 }
 

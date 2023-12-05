@@ -27,8 +27,8 @@ score = pips*pipsWeight
 All scoring calculations use pseudopips.
 
 Space value is defined as what the term 'pips' would normally refer to for a
-given space. The value of a space isthe same as the space number as it would
-appear to the player being scored.
+given space. The value of a space is the same as the space number as it appears
+to the player being scored.
 
 Base value is 12 for spaces within the home board of the player being scored.
 All other spaces have a base value of 36. The base values incentivize
