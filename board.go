@@ -8,6 +8,11 @@ import (
 )
 
 const (
+	analysisBufferSize    = 128
+	subAnalysisBufferSize = 1024
+)
+
+const (
 	SpaceHomePlayer   = 0
 	SpaceHomeOpponent = 25
 	SpaceBarPlayer    = 26
@@ -377,24 +382,59 @@ func (b Board) Analyze(available [][][]int) []*Analysis {
 		return nil
 	}
 
-	const bufferSize = 128
-	result := make([]*Analysis, 0, bufferSize)
-	resultMutex := &sync.Mutex{}
+	result := make([]*Analysis, 0, analysisBufferSize)
 	w := &sync.WaitGroup{}
 
 	past := b.Past()
 	w.Add(len(available))
 	for _, moves := range available {
+		r := make([]*Analysis, 0, subAnalysisBufferSize)
 		a := &Analysis{
-			Board:  b,
-			Moves:  moves,
-			Past:   past,
-			player: 1,
-			chance: 1,
+			Board:       b,
+			Moves:       moves,
+			Past:        past,
+			player:      1,
+			chance:      1,
+			result:      &r,
+			resultMutex: &sync.Mutex{},
+			wg:          w,
 		}
-		go a._analyze(&result, resultMutex, w)
+		result = append(result, a)
+		analysisQueue <- a
 	}
 	w.Wait()
+
+	for _, a := range result {
+		if a.player == 1 && !a.Past {
+			var oppPips float64
+			var oppBlots float64
+			var oppHits float64
+			var oppScore float64
+			var count float64
+			for _, r := range *a.result {
+				oppPips += float64(r.Pips)
+				oppBlots += float64(r.Blots)
+				oppHits += float64(r.Hits)
+				oppScore += r.PlayerScore
+				count++
+			}
+			if count == 0 {
+				a.Score = a.PlayerScore
+			} else {
+				a.OppPips = (oppPips / count)
+				a.OppBlots = (oppBlots / count)
+				a.OppHits = (oppHits / count)
+				a.OppScore = (oppScore / count)
+				score := a.PlayerScore
+				if !math.IsNaN(oppScore) {
+					score += a.OppScore * WeightOppScore
+				}
+				a.Score = score
+			}
+		} else {
+			a.Score = a.PlayerScore
+		}
+	}
 
 	sort.Slice(result, func(i, j int) bool {
 		return result[i].Score < result[j].Score

@@ -111,6 +111,35 @@ func TestAnalyze(t *testing.T) {
 	if blots <= 0 {
 		t.Errorf("expected >0 blots in results, got %d", blots)
 	}
+
+	type testCase struct {
+		roll1, roll2, roll3, roll4 int8
+	}
+	cases := []*testCase{
+		{1, 1, 1, 1},
+		{2, 2, 2, 2},
+		{3, 3, 3, 3},
+		{4, 4, 4, 4},
+		{5, 5, 5, 5},
+		{6, 6, 6, 6},
+		{1, 2, 0, 0},
+		{2, 3, 0, 0},
+		{3, 4, 0, 0},
+		{4, 5, 0, 0},
+		{5, 6, 0, 0},
+	}
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("%d-%d", c.roll1, c.roll2), func(t *testing.T) {
+			board := NewBoard()
+			board[SpaceRoll1] = c.roll1
+			board[SpaceRoll2] = c.roll2
+			board[SpaceRoll3] = c.roll3
+			board[SpaceRoll4] = c.roll4
+			available, _ := board.Available(1)
+
+			_ = board.Analyze(available)
+		})
+	}
 }
 
 func BenchmarkAvailable(b *testing.B) {

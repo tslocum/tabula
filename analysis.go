@@ -2,14 +2,16 @@ package tabula
 
 import (
 	"fmt"
-	"math"
+	"runtime"
 	"sync"
 )
 
+const queueBufferSize = 4096000
+
 var (
-	WeightBlot     = 1.03
-	WeightHit      = -0.5
-	WeightOppScore = -3.0
+	WeightBlot     = 1.1
+	WeightHit      = -0.9
+	WeightOppScore = -1.5
 )
 
 // rollProbabilities is a table of the probability of each roll combination.
@@ -37,6 +39,18 @@ var rollProbabilities = [21][3]int{
 	{6, 6, 1},
 }
 
+var analysisQueue = make(chan *Analysis, queueBufferSize)
+
+func init() {
+	cpus := runtime.NumCPU()
+	if cpus < 1 {
+		cpus = 1
+	}
+	for i := 0; i < cpus; i++ {
+		go analyzer()
+	}
+}
+
 type Analysis struct {
 	Board Board
 	Moves [][]int
@@ -48,6 +62,9 @@ type Analysis struct {
 	Hits        int
 	PlayerScore float64
 
+	result      *[]*Analysis
+	resultMutex *sync.Mutex
+
 	OppPips  float64
 	OppBlots float64
 	OppHits  float64
@@ -56,9 +73,10 @@ type Analysis struct {
 	player   int
 	hitScore int
 	chance   int
+	wg       *sync.WaitGroup
 }
 
-func (a *Analysis) _analyze(result *[]*Analysis, resultMutex *sync.Mutex, w *sync.WaitGroup) {
+func (a *Analysis) _analyze() {
 	var hs int
 	o := opponent(a.player)
 	for i := 0; i < len(a.Moves); i++ {
@@ -72,11 +90,7 @@ func (a *Analysis) _analyze(result *[]*Analysis, resultMutex *sync.Mutex, w *syn
 	a.Board.evaluate(a.player, hs, a)
 
 	if a.player == 1 && !a.Past {
-		const bufferSize = 1024
-		oppResults := make([]*Analysis, 0, bufferSize)
-		oppResultMutex := &sync.Mutex{}
-		wg := &sync.WaitGroup{}
-		wg.Add(21)
+		a.wg.Add(21)
 		for j := 0; j < 21; j++ {
 			j := j
 			go func() {
@@ -90,73 +104,60 @@ func (a *Analysis) _analyze(result *[]*Analysis, resultMutex *sync.Mutex, w *syn
 				}
 				available, _ := bc.Available(2)
 				if len(available) == 0 {
-					a := &Analysis{
-						Board:  bc,
-						Past:   a.Past,
-						player: 2,
-						chance: check[2],
+					{
+						a := &Analysis{
+							Board:       bc,
+							Past:        a.Past,
+							player:      2,
+							chance:      check[2],
+							result:      a.result,
+							resultMutex: a.resultMutex,
+						}
+						bc.evaluate(a.player, 0, a)
+						a.resultMutex.Lock()
+						for i := 0; i < a.chance; i++ {
+							*a.result = append(*a.result, a)
+						}
+						a.resultMutex.Unlock()
 					}
-					bc.evaluate(a.player, 0, a)
-					oppResultMutex.Lock()
-					for i := 0; i < check[2]; i++ {
-						oppResults = append(oppResults, a)
-					}
-					oppResultMutex.Unlock()
-					wg.Done()
+					a.wg.Done()
 					return
 				}
-				wg.Add(len(available) - 1)
+				a.wg.Add(len(available))
 				for _, moves := range available {
 					a := &Analysis{
-						Board:  bc,
-						Moves:  moves,
-						Past:   a.Past,
-						player: 2,
-						chance: check[2],
+						Board:       bc,
+						Moves:       moves,
+						Past:        a.Past,
+						player:      2,
+						chance:      check[2],
+						result:      a.result,
+						resultMutex: a.resultMutex,
+						wg:          a.wg,
 					}
-					go a._analyze(&oppResults, oppResultMutex, wg)
+					analysisQueue <- a
 				}
+				a.wg.Done()
 			}()
 		}
-		wg.Wait()
-
-		var oppPips float64
-		var oppBlots float64
-		var oppHits float64
-		var oppScore float64
-		var count float64
-		for _, r := range oppResults {
-			oppPips += float64(r.Pips)
-			oppBlots += float64(r.Blots)
-			oppHits += float64(r.Hits)
-			oppScore += r.PlayerScore
-			count++
+	} else if a.player == 2 {
+		a.resultMutex.Lock()
+		for i := 0; i < a.chance; i++ {
+			*a.result = append(*a.result, a)
 		}
-		if count == 0 {
-			a.Score = a.PlayerScore
-		} else {
-			a.OppPips = (oppPips / count)
-			a.OppBlots = (oppBlots / count)
-			a.OppHits = (oppHits / count)
-			a.OppScore = (oppScore / count)
-			score := a.PlayerScore
-			if !math.IsNaN(oppScore) {
-				score += a.OppScore * WeightOppScore
-			}
-			a.Score = score
-		}
-	} else {
-		a.Score = a.PlayerScore
+		a.resultMutex.Unlock()
 	}
-
-	resultMutex.Lock()
-	for i := 0; i < a.chance; i++ {
-		*result = append(*result, a)
-	}
-	resultMutex.Unlock()
-	w.Done()
+	a.wg.Done()
 }
 
 func (a *Analysis) String() string {
 	return fmt.Sprintf("Moves: %s Score: %.2f - Score: %.2f Pips: %d Blots: %d Hits: %d /  Score: %.2f Pips: %.2f Blots: %.2f Hits: %.2f Past: %v", fmt.Sprint(a.Moves), a.Score, a.PlayerScore, a.Pips, a.Blots, a.Hits, a.OppScore, a.OppPips, a.OppBlots, a.OppHits, a.Past)
+}
+
+func analyzer() {
+	var a *Analysis
+	for {
+		a = <-analysisQueue
+		a._analyze()
+	}
 }
