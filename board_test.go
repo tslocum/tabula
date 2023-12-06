@@ -75,7 +75,7 @@ func TestBlots(t *testing.T) {
 
 	b = b.Move(24, 23, 1)
 
-	got, expected = b.Blots(1), 31
+	got, expected = b.Blots(1), 19
 	if got != expected {
 		t.Errorf("unexpected blots value: expected %v: got %v", expected, got)
 	}
@@ -86,11 +86,11 @@ func TestBlots(t *testing.T) {
 
 	b = b.Move(1, 2, 2)
 
-	got, expected = b.Blots(1), 31
+	got, expected = b.Blots(1), 19
 	if got != expected {
 		t.Errorf("unexpected blots value: expected %v: got %v", expected, got)
 	}
-	got, expected = b.Blots(2), 31
+	got, expected = b.Blots(2), 19
 	if got != expected {
 		t.Errorf("unexpected blots value: expected %v: got %v", expected, got)
 	}
@@ -102,15 +102,14 @@ func TestAnalyze(t *testing.T) {
 	b = b.Move(1, 2, 2)
 	b[SpaceRoll1], b[SpaceRoll2] = 1, 2
 
-	for player := 1; player <= 2; player++ {
-		r := b.Analyze(player, b.Available(player))
-		var blots int
-		for _, r := range r {
-			blots += r.Blots
-		}
-		if blots <= 0 {
-			t.Errorf("expected >0 blots for player %d in results, got %d", player, blots)
-		}
+	available, _ := b.Available(1)
+	r := b.Analyze(available)
+	var blots int
+	for _, r := range r {
+		blots += r.Blots
+	}
+	if blots <= 0 {
+		t.Errorf("expected >0 blots in results, got %d", blots)
 	}
 }
 
@@ -139,10 +138,10 @@ func BenchmarkAvailable(b *testing.B) {
 			board[SpaceRoll3] = c.roll3
 			board[SpaceRoll4] = c.roll4
 
-			var available [][]int
+			var available [][][]int
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				available = board.Available(1)
+				available, _ = board.Available(1)
 			}
 
 			_ = available
@@ -174,12 +173,12 @@ func BenchmarkAnalyze(b *testing.B) {
 			board[SpaceRoll2] = c.roll2
 			board[SpaceRoll3] = c.roll3
 			board[SpaceRoll4] = c.roll4
-			available := board.Available(1)
+			available, _ := board.Available(1)
 
 			var analysis []*Analysis
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				analysis = board.Analyze(1, available)
+				analysis = board.Analyze(available)
 			}
 
 			_ = analysis

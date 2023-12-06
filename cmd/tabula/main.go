@@ -14,9 +14,9 @@ func main() {
 	b.Print()
 
 	t := time.Now()
-	available := b.Available(1)
+	available, _ := b.Available(1)
 	t2 := time.Now()
-	analysis := b.Analyze(1, available)
+	analysis := b.Analyze(available)
 	t3 := time.Now()
 
 	log.Println("AVAILABLE TOOK ", t2.Sub(t))

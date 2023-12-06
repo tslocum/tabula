@@ -7,12 +7,6 @@ import (
 	"sync"
 )
 
-var (
-	WeightBlot     = 1.0
-	WeightHit      = -1.0
-	WeightOppScore = -10.0
-)
-
 const (
 	SpaceHomePlayer   = 0
 	SpaceHomeOpponent = 25
@@ -27,36 +21,6 @@ const (
 const (
 	boardSpaces = 32
 )
-
-type probabilityTable struct {
-	Roll1  int
-	Roll2  int
-	Chance float64
-}
-
-var rollProbabilities = []*probabilityTable{
-	{1, 1, 1.0},
-	{1, 2, 2.0},
-	{1, 3, 2.0},
-	{1, 4, 2.0},
-	{1, 5, 2.0},
-	{1, 6, 2.0},
-	{2, 2, 1.0},
-	{2, 3, 2.0},
-	{2, 4, 2.0},
-	{2, 5, 2.0},
-	{2, 6, 2.0},
-	{3, 3, 1.0},
-	{3, 4, 2.0},
-	{3, 5, 2.0},
-	{3, 6, 2.0},
-	{4, 4, 1.0},
-	{4, 5, 2.0},
-	{4, 6, 2.0},
-	{5, 5, 1.0},
-	{5, 6, 2.0},
-	{6, 6, 1.0},
-}
 
 // Board represents the state of a game. It contains spaces for the checkers,
 // as well as four "spaces" which contain the available die rolls.
@@ -212,8 +176,7 @@ func (b Board) UseRoll(from int, to int, player int) Board {
 	return b
 }
 
-// Available returns legal moves available.
-func (b Board) Available(player int) [][]int {
+func (b Board) _available(player int) [][]int {
 	barSpace := SpaceBarPlayer
 	opponentBarSpace := SpaceBarOpponent
 	if player == 2 {
@@ -256,6 +219,82 @@ func (b Board) Available(player int) [][]int {
 		}
 	}
 	return moves
+}
+
+// Available returns legal moves available.
+func (b Board) Available(player int) ([][][]int, []Board) {
+	var allMoves [][][]int
+
+	resultMutex := &sync.Mutex{}
+	movesFound := func(moves [][]int) bool {
+		resultMutex.Lock()
+		for _, f := range allMoves {
+			if movesEqual(f, moves) {
+				resultMutex.Unlock()
+				return true
+			}
+		}
+		resultMutex.Unlock()
+		return false
+	}
+
+	var boards []Board
+	a := b._available(player)
+	maxLen := 1
+	for _, move := range a {
+		newBoard := b.Move(move[0], move[1], player).UseRoll(move[0], move[1], player)
+		newAvailable := newBoard._available(player)
+		if len(newAvailable) == 0 {
+			moves := [][]int{move}
+			if !movesFound(moves) {
+				allMoves = append(allMoves, moves)
+				boards = append(boards, newBoard)
+			}
+			continue
+		}
+		for _, move2 := range newAvailable {
+			newBoard2 := newBoard.Move(move2[0], move2[1], player).UseRoll(move2[0], move2[1], player)
+			newAvailable2 := newBoard2._available(player)
+			if len(newAvailable2) == 0 {
+				moves := [][]int{move, move2}
+				if !movesFound(moves) {
+					allMoves = append(allMoves, moves)
+					boards = append(boards, newBoard2)
+					maxLen = 2
+				}
+				continue
+			}
+			for _, move3 := range newAvailable2 {
+				newBoard3 := newBoard2.Move(move3[0], move3[1], player).UseRoll(move3[0], move3[1], player)
+				newAvailable3 := newBoard3._available(player)
+				if len(newAvailable3) == 0 {
+					moves := [][]int{move, move2, move3}
+					if !movesFound(moves) {
+						allMoves = append(allMoves, moves)
+						boards = append(boards, newBoard3)
+						maxLen = 3
+					}
+					continue
+				}
+				for _, move4 := range newAvailable3 {
+					newBoard4 := newBoard3.Move(move4[0], move4[1], player).UseRoll(move4[0], move4[1], player)
+					moves := [][]int{move, move2, move3, move4}
+					if !movesFound(moves) {
+						allMoves = append(allMoves, moves)
+						boards = append(boards, newBoard4)
+						maxLen = 4
+					}
+				}
+			}
+		}
+	}
+	var newMoves [][][]int
+	for i := 0; i < len(allMoves); i++ {
+		if len(allMoves[i]) >= maxLen {
+			newMoves = append(newMoves, allMoves[i])
+		}
+	}
+	return newMoves, boards
 }
 
 func (b Board) Past() bool {
@@ -323,149 +362,40 @@ func (b Board) evaluate(player int, hitScore int, a *Analysis) {
 
 func (b Board) Evaluation(player int, hitScore int, moves [][]int) *Analysis {
 	a := &Analysis{
-		Board: b,
-		Moves: moves,
-		Past:  b.Past(),
+		Board:  b,
+		Moves:  moves,
+		Past:   b.Past(),
+		player: player,
+		chance: 1,
 	}
 	b.evaluate(player, hitScore, a)
 	return a
 }
 
-func queueAnalysis(a *Analysis, w *sync.WaitGroup, b Board, player int, available [][]int, moves [][]int, found *[][][]int, result *[]*Analysis, resultMutex *sync.Mutex) {
-	startingHitScore := a.hitScore
-	for _, move := range available {
-		move := move
-		go func() {
-			newMoves := append(append([][]int{}, moves...), move)
-
-			resultMutex.Lock()
-			for _, f := range *found {
-				if movesEqual(f, newMoves) {
-					resultMutex.Unlock()
-					w.Done()
-					return
-				}
-			}
-			*found = append(*found, newMoves)
-			resultMutex.Unlock()
-
-			o := opponent(player)
-			checkers := b.Checkers(o, move[1])
-			hs := startingHitScore
-			if checkers == 1 {
-				hs += pseudoPips(o, move[1])
-			}
-
-			a := &Analysis{
-				Board: b.Move(move[0], move[1], player).UseRoll(move[0], move[1], player),
-				Moves: newMoves,
-				Past:  a.Past,
-			}
-			a.Board.evaluate(player, hs, a)
-
-			available := a.Board.Available(player)
-			w.Add(len(available))
-			queueAnalysis(a, w, a.Board, player, available, a.Moves, found, result, resultMutex)
-
-			resultMutex.Lock()
-			*result = append(*result, a)
-			resultMutex.Unlock()
-			w.Done()
-		}()
-	}
-}
-
-func (b Board) Analyze(player int, available [][]int) []*Analysis {
+func (b Board) Analyze(available [][][]int) []*Analysis {
 	if len(available) == 0 {
 		return nil
 	}
 
 	const bufferSize = 128
-	var found [][][]int
-	w := &sync.WaitGroup{}
 	result := make([]*Analysis, 0, bufferSize)
 	resultMutex := &sync.Mutex{}
+	w := &sync.WaitGroup{}
 
-	a := &Analysis{
-		Past: b.Past(),
-	}
-	b.evaluate(player, 0, a)
-
+	past := b.Past()
 	w.Add(len(available))
-	queueAnalysis(a, w, b, player, available, nil, &found, &result, resultMutex)
+	for _, moves := range available {
+		a := &Analysis{
+			Board:  b,
+			Moves:  moves,
+			Past:   past,
+			player: 1,
+			chance: 1,
+		}
+		go a._analyze(&result, resultMutex, w)
+	}
 	w.Wait()
 
-	var maxMoves int
-	for i := range result {
-		l := len(result[i].Moves)
-		if l > maxMoves {
-			maxMoves = l
-		}
-	}
-	var newResult []*Analysis
-	for i := 0; i < len(result); i++ {
-		if len(result[i].Moves) == maxMoves {
-			newResult = append(newResult, result[i])
-		}
-	}
-	result = newResult
-	if player == 1 && !a.Past {
-		oppResults := make([][]*Analysis, len(result))
-		w.Add(len(result) * 21)
-		for i := range result {
-			i := i
-			oppResultMutex := &sync.Mutex{}
-			oppResults[i] = make([]*Analysis, 0, bufferSize)
-			for j := 0; j < 21; j++ {
-				j := j
-				go func() {
-					check := rollProbabilities[j]
-					bc := result[i].Board
-					bc[SpaceRoll1], bc[SpaceRoll2] = int8(check.Roll1), int8(check.Roll2)
-					if int8(check.Roll1) == int8(check.Roll2) {
-						bc[SpaceRoll3], bc[SpaceRoll4] = int8(check.Roll1), int8(check.Roll2)
-					}
-					available := bc.Available(2)
-					a := &Analysis{
-						Past: a.Past,
-					}
-					bc.evaluate(player, 0, a)
-					w.Add(len(available))
-					queueAnalysis(a, w, bc, 2, available, nil, &[][][]int{}, &oppResults[i], oppResultMutex)
-					w.Done()
-				}()
-			}
-		}
-		w.Wait()
-
-		for i := range result {
-			var oppPips float64
-			var oppBlots float64
-			var oppHits float64
-			var oppScore float64
-			var count float64
-			for _, r := range oppResults[i] {
-				oppPips += float64(r.Pips)
-				oppBlots += float64(r.Blots)
-				oppHits += float64(r.Hits)
-				oppScore += r.PlayerScore
-				count++
-			}
-			result[i].OppPips = (oppPips / count)
-			result[i].OppBlots = (oppBlots / count)
-			result[i].OppHits = (oppHits / count)
-			result[i].OppScore = (oppScore / count)
-			score := result[i].PlayerScore
-			if !math.IsNaN(oppScore) {
-				score += result[i].OppScore * WeightOppScore
-			}
-			result[i].Score = score
-		}
-	} else {
-		for i := range result {
-			result[i].Score = result[i].PlayerScore
-		}
-	}
 	sort.Slice(result, func(i, j int) bool {
 		return result[i].Score < result[j].Score
 	})
@@ -494,9 +424,9 @@ func spaceValue(player int, space int) int {
 }
 
 func pseudoPips(player int, space int) int {
-	v := 12 + spaceValue(player, space) + int(math.Exp(float64(spaceValue(player, space))*0.2))*2
+	v := 6 + spaceValue(player, space) + int(math.Exp(float64(spaceValue(player, space))*0.2))*2
 	if (player == 1 && (space > 6 || space == SpaceBarPlayer)) || (player == 2 && (space < 19 || space == SpaceBarOpponent)) {
-		v += 24
+		v += 36
 	}
 	return v
 }
