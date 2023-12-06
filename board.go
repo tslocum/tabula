@@ -8,9 +8,9 @@ import (
 )
 
 var (
-	WeightBlot     = 0.6
-	WeightHit      = -0.3
-	WeightOppScore = -3.5
+	WeightBlot     = 1.0
+	WeightHit      = -1.0
+	WeightOppScore = -10.0
 )
 
 const (
