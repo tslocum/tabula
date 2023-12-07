@@ -327,12 +327,12 @@ func (b Board) Past() bool {
 func (b Board) Pips(player int) int {
 	var pips int
 	if player == 1 {
-		pips += int(b.Checkers(player, SpaceBarPlayer)) * pseudoPips(player, SpaceBarPlayer)
+		pips += int(b.Checkers(player, SpaceBarPlayer)) * PseudoPips(player, SpaceBarPlayer)
 	} else {
-		pips += int(b.Checkers(player, SpaceBarOpponent)) * pseudoPips(player, SpaceBarOpponent)
+		pips += int(b.Checkers(player, SpaceBarOpponent)) * PseudoPips(player, SpaceBarOpponent)
 	}
 	for space := 1; space < 25; space++ {
-		pips += int(b.Checkers(player, space)) * pseudoPips(player, space)
+		pips += int(b.Checkers(player, space)) * PseudoPips(player, space)
 	}
 	return pips
 }
@@ -345,7 +345,7 @@ func (b Board) Blots(player int) int {
 		if checkers != 1 {
 			continue
 		}
-		pips += int(checkers) * pseudoPips(o, space)
+		pips += int(checkers) * PseudoPips(o, space)
 	}
 	return pips
 }
@@ -463,7 +463,7 @@ func spaceValue(player int, space int) int {
 	}
 }
 
-func pseudoPips(player int, space int) int {
+func PseudoPips(player int, space int) int {
 	v := 6 + spaceValue(player, space) + int(math.Exp(float64(spaceValue(player, space))*0.2))*2
 	if (player == 1 && (space > 6 || space == SpaceBarPlayer)) || (player == 2 && (space < 19 || space == SpaceBarOpponent)) {
 		v += 36
