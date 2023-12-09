@@ -9,8 +9,8 @@ import (
 const queueBufferSize = 4096000
 
 var (
-	WeightBlot     = 1.1
-	WeightHit      = -0.9
+	WeightBlot     = 1.05
+	WeightHit      = -1.0
 	WeightOppScore = -1.5
 )
 
@@ -86,6 +86,9 @@ func (a *Analysis) _analyze() {
 			hs += PseudoPips(o, move[1])
 		}
 		a.Board = a.Board.Move(move[0], move[1], a.player).UseRoll(move[0], move[1], a.player)
+	}
+	if !a.Past {
+		a.Past = a.Board.Past()
 	}
 	a.Board.evaluate(a.player, hs, a)
 

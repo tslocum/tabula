@@ -345,7 +345,7 @@ func (b Board) Blots(player int) int {
 		if checkers != 1 {
 			continue
 		}
-		pips += int(checkers) * PseudoPips(o, space)
+		pips += checkers * PseudoPips(o, space)
 	}
 	return pips
 }
@@ -466,7 +466,7 @@ func spaceValue(player int, space int) int {
 func PseudoPips(player int, space int) int {
 	v := 6 + spaceValue(player, space) + int(math.Exp(float64(spaceValue(player, space))*0.2))*2
 	if (player == 1 && (space > 6 || space == SpaceBarPlayer)) || (player == 2 && (space < 19 || space == SpaceBarOpponent)) {
-		v += 36
+		v += 24
 	}
 	return v
 }
