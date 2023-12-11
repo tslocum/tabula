@@ -33,7 +33,8 @@ func main() {
 	t := time.Now()
 	available, _ := b.Available(1)
 	t2 := time.Now()
-	analysis := b.Analyze(available)
+	analysis := make([]*tabula.Analysis, 0, tabula.AnalysisBufferSize)
+	b.Analyze(available, &analysis)
 	t3 := time.Now()
 
 	log.Println("AVAILABLE TOOK ", t2.Sub(t))

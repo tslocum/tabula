@@ -103,9 +103,10 @@ func TestAnalyze(t *testing.T) {
 	b[SpaceRoll1], b[SpaceRoll2] = 1, 2
 
 	available, _ := b.Available(1)
-	r := b.Analyze(available)
+	analysis := make([]*Analysis, 0, AnalysisBufferSize)
+	b.Analyze(available, &analysis)
 	var blots int
-	for _, r := range r {
+	for _, r := range analysis {
 		blots += r.Blots
 	}
 	if blots <= 0 {
@@ -137,7 +138,7 @@ func TestAnalyze(t *testing.T) {
 			board[SpaceRoll4] = c.roll4
 			available, _ := board.Available(1)
 
-			_ = board.Analyze(available)
+			board.Analyze(available, &analysis)
 		})
 	}
 }
@@ -203,11 +204,11 @@ func BenchmarkAnalyze(b *testing.B) {
 			board[SpaceRoll3] = c.roll3
 			board[SpaceRoll4] = c.roll4
 			available, _ := board.Available(1)
+			analysis := make([]*Analysis, 0, AnalysisBufferSize)
 
-			var analysis []*Analysis
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				analysis = board.Analyze(available)
+				board.Analyze(available, &analysis)
 			}
 
 			_ = analysis

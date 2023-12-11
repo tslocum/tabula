@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-const queueBufferSize = 4096000
+var QueueBufferSize = 4096000
 
 var (
 	WeightBlot     = 1.05
@@ -39,7 +39,7 @@ var rollProbabilities = [21][3]int{
 	{6, 6, 1},
 }
 
-var analysisQueue = make(chan *Analysis, queueBufferSize)
+var analysisQueue = make(chan *Analysis, QueueBufferSize)
 
 func init() {
 	cpus := runtime.NumCPU()

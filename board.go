@@ -7,9 +7,9 @@ import (
 	"sync"
 )
 
-const (
-	analysisBufferSize    = 128
-	subAnalysisBufferSize = 1024
+var (
+	AnalysisBufferSize    = 128
+	SubAnalysisBufferSize = 1024
 )
 
 const (
@@ -445,34 +445,51 @@ func (b Board) Evaluation(player int, hitScore int, moves [][]int) *Analysis {
 	return a
 }
 
-func (b Board) Analyze(available [][][]int) []*Analysis {
+func (b Board) Analyze(available [][][]int, result *[]*Analysis) {
 	if len(available) == 0 {
-		return nil
+		*result = (*result)[:0]
+		return
 	}
 
-	result := make([]*Analysis, 0, analysisBufferSize)
+	var reuse []*[]*Analysis
+	for _, r := range *result {
+		if r.result != nil {
+			reuse = append(reuse, r.result)
+		}
+	}
+	*result = (*result)[:0]
+	reuseLen := len(reuse)
+	var reuseIndex int
+
 	w := &sync.WaitGroup{}
 
 	past := b.Past()
 	w.Add(len(available))
 	for _, moves := range available {
-		r := make([]*Analysis, 0, subAnalysisBufferSize)
+		var r *[]*Analysis
+		if reuseIndex < reuseLen {
+			r = reuse[reuseIndex]
+			reuseIndex++
+		} else {
+			v := make([]*Analysis, 0, SubAnalysisBufferSize)
+			r = &v
+		}
 		a := &Analysis{
 			Board:       b,
 			Moves:       moves,
 			Past:        past,
 			player:      1,
 			chance:      1,
-			result:      &r,
+			result:      r,
 			resultMutex: &sync.Mutex{},
 			wg:          w,
 		}
-		result = append(result, a)
+		*result = append(*result, a)
 		analysisQueue <- a
 	}
 	w.Wait()
 
-	for _, a := range result {
+	for _, a := range *result {
 		if a.player == 1 && !a.Past {
 			var oppPips float64
 			var oppBlots float64
@@ -504,36 +521,34 @@ func (b Board) Analyze(available [][][]int) []*Analysis {
 		}
 	}
 
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Score < result[j].Score
+	sort.Slice(*result, func(i, j int) bool {
+		return (*result)[i].Score < (*result)[j].Score
 	})
-	return result
 }
-func (b Board) ChooseDoubles() (int, [][]*Analysis) {
-	if !b.Acey() {
-		return 0, nil
-	}
 
-	var allAnalysis = make([][]*Analysis, 6)
-	for i := 0; i < 6; i++ {
-		doubles := int8(i + 1)
-		bc := b
-		bc[SpaceRoll1], bc[SpaceRoll2], bc[SpaceRoll3], bc[SpaceRoll4] = doubles, doubles, doubles, doubles
-		available, _ := bc.Available(1)
-		allAnalysis[i] = bc.Analyze(available)
+func (b Board) ChooseDoubles(result *[]*Analysis) int {
+	if !b.Acey() {
+		return 0
 	}
 
 	bestDoubles := 6
 	bestScore := math.MaxFloat64
+
+	var available [][][]int
 	for i := 0; i < 6; i++ {
-		if len(allAnalysis[i]) == 0 {
-			continue
-		} else if allAnalysis[i][0].Score < bestScore {
+		doubles := int8(i + 1)
+		bc := b
+		bc[SpaceRoll1], bc[SpaceRoll2], bc[SpaceRoll3], bc[SpaceRoll4] = doubles, doubles, doubles, doubles
+
+		available, _ = bc.Available(1)
+		bc.Analyze(available, result)
+		if len(*result) > 0 && (*result)[0].Score < bestScore {
 			bestDoubles = i + 1
-			bestScore = allAnalysis[i][0].Score
+			bestScore = (*result)[0].Score
 		}
 	}
-	return bestDoubles, allAnalysis
+
+	return bestDoubles
 }
 
 func (b Board) Print() {
