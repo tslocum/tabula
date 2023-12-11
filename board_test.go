@@ -6,7 +6,7 @@ import (
 )
 
 func TestMove(t *testing.T) {
-	b := NewBoard()
+	b := NewBoard(false)
 	b[SpaceRoll1] = 1
 	b[SpaceRoll2] = 2
 	got, expected := b[24], int8(2)
@@ -37,7 +37,7 @@ func TestMove(t *testing.T) {
 }
 
 func TestPast(t *testing.T) {
-	b := NewBoard()
+	b := NewBoard(false)
 	got, expected := b.Past(), false
 	if got != expected {
 		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
@@ -63,7 +63,7 @@ func TestPast(t *testing.T) {
 }
 
 func TestBlots(t *testing.T) {
-	b := NewBoard()
+	b := NewBoard(false)
 	got, expected := b.Blots(1), 0
 	if got != expected {
 		t.Errorf("unexpected blots value: expected %v: got %v", expected, got)
@@ -97,7 +97,7 @@ func TestBlots(t *testing.T) {
 }
 
 func TestAnalyze(t *testing.T) {
-	b := NewBoard()
+	b := NewBoard(false)
 	b = b.Move(24, 23, 1)
 	b = b.Move(1, 2, 2)
 	b[SpaceRoll1], b[SpaceRoll2] = 1, 2
@@ -130,7 +130,7 @@ func TestAnalyze(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(fmt.Sprintf("%d-%d", c.roll1, c.roll2), func(t *testing.T) {
-			board := NewBoard()
+			board := NewBoard(false)
 			board[SpaceRoll1] = c.roll1
 			board[SpaceRoll2] = c.roll2
 			board[SpaceRoll3] = c.roll3
@@ -161,7 +161,7 @@ func BenchmarkAvailable(b *testing.B) {
 	}
 	for _, c := range cases {
 		b.Run(fmt.Sprintf("%d-%d", c.roll1, c.roll2), func(b *testing.B) {
-			board := NewBoard()
+			board := NewBoard(false)
 			board[SpaceRoll1] = c.roll1
 			board[SpaceRoll2] = c.roll2
 			board[SpaceRoll3] = c.roll3
@@ -197,7 +197,7 @@ func BenchmarkAnalyze(b *testing.B) {
 	}
 	for _, c := range cases {
 		b.Run(fmt.Sprintf("%d-%d", c.roll1, c.roll2), func(b *testing.B) {
-			board := NewBoard()
+			board := NewBoard(false)
 			board[SpaceRoll1] = c.roll1
 			board[SpaceRoll2] = c.roll2
 			board[SpaceRoll3] = c.roll3

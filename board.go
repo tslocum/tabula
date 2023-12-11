@@ -158,7 +158,7 @@ func (b Board) HaveRoll(from int, to int, player int) bool {
 		playerDelta = 1
 		playerHomeEnd = 19
 	}
-	if b.MayBearOff(player) {
+	if b.MayBearOff(player) && !b.Acey() {
 		allowGreater := true
 		for checkSpace := int8(0); checkSpace < 6-delta; checkSpace++ {
 			if b.Checkers(player, playerHomeEnd+int(checkSpace)*playerDelta) != 0 {
@@ -187,7 +187,7 @@ func (b Board) UseRoll(from int, to int, player int) Board {
 		playerHomeEnd = 19
 	}
 	var allowGreater bool
-	if b.MayBearOff(player) {
+	if b.MayBearOff(player) && !b.Acey() {
 		allowGreater = true
 		for checkSpace := int8(0); checkSpace < 6-delta; checkSpace++ {
 			if b.Checkers(player, playerHomeEnd+int(checkSpace)*playerDelta) != 0 {
@@ -508,6 +508,32 @@ func (b Board) Analyze(available [][][]int) []*Analysis {
 		return result[i].Score < result[j].Score
 	})
 	return result
+}
+func (b Board) ChooseDoubles() (int, [][]*Analysis) {
+	if !b.Acey() {
+		return 0, nil
+	}
+
+	var allAnalysis = make([][]*Analysis, 6)
+	for i := 0; i < 6; i++ {
+		doubles := int8(i + 1)
+		bc := b
+		bc[SpaceRoll1], bc[SpaceRoll2], bc[SpaceRoll3], bc[SpaceRoll4] = doubles, doubles, doubles, doubles
+		available, _ := bc.Available(1)
+		allAnalysis[i] = bc.Analyze(available)
+	}
+
+	bestDoubles := 6
+	bestScore := math.MaxFloat64
+	for i := 0; i < 6; i++ {
+		if len(allAnalysis[i]) == 0 {
+			continue
+		} else if allAnalysis[i][0].Score < bestScore {
+			bestDoubles = i + 1
+			bestScore = allAnalysis[i][0].Score
+		}
+	}
+	return bestDoubles, allAnalysis
 }
 
 func (b Board) Print() {
