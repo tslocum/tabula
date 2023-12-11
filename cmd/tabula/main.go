@@ -23,9 +23,11 @@ func main() {
 		return
 	}
 
-	b := tabula.NewBoard()
-	b[tabula.SpaceRoll1] = 5
-	b[tabula.SpaceRoll2] = 3
+	b := tabula.NewBoard(true)
+	b[tabula.SpaceRoll1] = 6
+	b[tabula.SpaceRoll2] = 6
+	b[tabula.SpaceRoll3] = 6
+	b[tabula.SpaceRoll4] = 6
 	b.Print()
 
 	t := time.Now()

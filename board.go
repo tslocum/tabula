@@ -13,18 +13,21 @@ const (
 )
 
 const (
-	SpaceHomePlayer   = 0
-	SpaceHomeOpponent = 25
-	SpaceBarPlayer    = 26
-	SpaceBarOpponent  = 27
-	SpaceRoll1        = 28
-	SpaceRoll2        = 29
-	SpaceRoll3        = 30
-	SpaceRoll4        = 31
+	SpaceHomePlayer      = 0
+	SpaceHomeOpponent    = 25
+	SpaceBarPlayer       = 26
+	SpaceBarOpponent     = 27
+	SpaceRoll1           = 28
+	SpaceRoll2           = 29
+	SpaceRoll3           = 30
+	SpaceRoll4           = 31
+	SpaceEnteredPlayer   = 32 // Whether the player has fully entered the board. Only used in acey-deucey games.
+	SpaceEnteredOpponent = 33 // Whether the opponent has fully entered the board. Only used in acey-deucey games.
+	SpaceAcey            = 34 // 0 - Backgammon, 1 - Acey-deucey.
 )
 
 const (
-	boardSpaces = 32
+	boardSpaces = 35
 )
 
 // Board represents the state of a game. It contains spaces for the checkers,
@@ -32,8 +35,15 @@ const (
 type Board [boardSpaces]int8
 
 // NewBoard returns a new board with checkers placed in their starting positions.
-func NewBoard() Board {
-	return Board{0, -2, 0, 0, 0, 0, 5, 0, 3, 0, 0, 0, -5, 5, 0, 0, 0, -3, 0, -5, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0}
+func NewBoard(acey bool) Board {
+	if acey {
+		return Board{15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -15, 0, 0, 0, 0, 0, 0, 0, 0, 1}
+	}
+	return Board{0, -2, 0, 0, 0, 0, 5, 0, 3, 0, 0, 0, -5, 5, 0, 0, 0, -3, 0, -5, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0}
+}
+
+func (b Board) Acey() bool {
+	return b[SpaceAcey] == 1
 }
 
 func (b Board) SetValue(space int, value int8) Board {
@@ -78,6 +88,9 @@ func (b Board) Checkers(player int, space int) int {
 }
 
 func (b Board) MayBearOff(player int) bool {
+	if b.Acey() && ((player == 1 && b[SpaceEnteredPlayer] == 0) || (player == 2 && b[SpaceEnteredOpponent] == 0)) {
+		return false
+	}
 	homeStart := 1
 	homeEnd := 6
 	barSpace := SpaceBarPlayer
@@ -99,9 +112,43 @@ func (b Board) MayBearOff(player int) bool {
 	return true
 }
 
+func (b Board) spaceDiff(player int, from int, to int) int {
+	switch {
+	case from < 0 || from > 27 || to < 0 || to > 27:
+		return 0
+	case to == SpaceBarPlayer || to == SpaceBarOpponent:
+		return 0
+	case (from == SpaceBarPlayer || from == SpaceBarOpponent) && (to == SpaceBarPlayer || to == SpaceBarOpponent || to == SpaceHomePlayer || to == SpaceHomeOpponent):
+		return 0
+	case to == SpaceHomePlayer:
+		return from
+	case to == SpaceHomeOpponent:
+		return 25 - from
+	case from == SpaceHomePlayer || from == SpaceHomeOpponent:
+		if b.Acey() {
+			if player == 1 && from == SpaceHomePlayer && b[SpaceEnteredPlayer] == 0 {
+				return 25 - to
+			} else if player == 2 && from == SpaceHomeOpponent && b[SpaceEnteredOpponent] == 0 {
+				return to
+			}
+		}
+		return 0
+	case from == SpaceBarPlayer:
+		return 25 - to
+	case from == SpaceBarOpponent:
+		return to
+	default:
+		diff := to - from
+		if diff < 0 {
+			return diff * -1
+		}
+		return diff
+	}
+}
+
 // HaveRoll returns whether the player has a sufficient die roll for the specified move.
 func (b Board) HaveRoll(from int, to int, player int) bool {
-	delta := int8(spaceDiff(from, to))
+	delta := int8(b.spaceDiff(player, from, to))
 	if delta == 0 {
 		return false
 	}
@@ -128,7 +175,7 @@ func (b Board) HaveRoll(from int, to int, player int) bool {
 
 // UseRoll uses a die roll.
 func (b Board) UseRoll(from int, to int, player int) Board {
-	delta := int8(spaceDiff(from, to))
+	delta := int8(b.spaceDiff(player, from, to))
 	if delta == 0 {
 		b.Print()
 		log.Panic("unknown space diff", from, to, player)
@@ -161,7 +208,7 @@ func (b Board) UseRoll(from int, to int, player int) Board {
 			b[SpaceRoll4] = 0
 		default:
 			b.Print()
-			log.Panic("no available roll for move", from, to, player)
+			log.Panic("no available roll for move", from, to, player, delta)
 		}
 	} else {
 		switch {
@@ -175,22 +222,34 @@ func (b Board) UseRoll(from int, to int, player int) Board {
 			b[SpaceRoll4] = 0
 		default:
 			b.Print()
-			log.Panic("no available roll for move", from, to, player)
+			log.Panic("no available roll for move", from, to, player, delta)
 		}
 	}
 	return b
 }
 
 func (b Board) _available(player int) [][]int {
+	homeSpace := SpaceHomePlayer
 	barSpace := SpaceBarPlayer
 	opponentBarSpace := SpaceBarOpponent
 	if player == 2 {
+		homeSpace = SpaceHomeOpponent
 		barSpace = SpaceBarOpponent
 		opponentBarSpace = SpaceBarPlayer
 	}
 	mayBearOff := b.MayBearOff(player)
 	onBar := b[barSpace] != 0
+
 	var moves [][]int
+
+	if b.Acey() && ((player == 1 && b[SpaceEnteredPlayer] == 0) || (player == 2 && b[SpaceEnteredOpponent] == 0)) && b[homeSpace] != 0 {
+		for space := 1; space < 25; space++ {
+			if b.HaveRoll(homeSpace, space, player) {
+				moves = append(moves, []int{homeSpace, space})
+			}
+		}
+	}
+
 	for from := 0; from < 28; from++ {
 		if from == SpaceHomePlayer || from == SpaceHomeOpponent || from == opponentBarSpace || b.Checkers(player, from) == 0 || (onBar && from != barSpace) {
 			continue
@@ -223,6 +282,7 @@ func (b Board) _available(player int) [][]int {
 			}
 		}
 	}
+
 	return moves
 }
 
@@ -247,6 +307,7 @@ func (b Board) Available(player int) ([][][]int, []Board) {
 	a := b._available(player)
 	maxLen := 1
 	for _, move := range a {
+		move := move
 		newBoard := b.Move(move[0], move[1], player).UseRoll(move[0], move[1], player)
 		newAvailable := newBoard._available(player)
 		if len(newAvailable) == 0 {
@@ -326,6 +387,13 @@ func (b Board) Past() bool {
 
 func (b Board) Pips(player int) int {
 	var pips int
+	if b.Acey() {
+		if player == 1 && b[SpaceEnteredPlayer] == 0 {
+			pips += int(b.Checkers(player, SpaceHomePlayer)) * PseudoPips(player, SpaceHomePlayer)
+		} else if player == 2 && b[SpaceEnteredOpponent] == 0 {
+			pips += int(b.Checkers(player, SpaceHomeOpponent)) * PseudoPips(player, SpaceHomeOpponent)
+		}
+	}
 	if player == 1 {
 		pips += int(b.Checkers(player, SpaceBarPlayer)) * PseudoPips(player, SpaceBarPlayer)
 	} else {
@@ -454,7 +522,7 @@ func opponent(player int) int {
 }
 
 func spaceValue(player int, space int) int {
-	if space == SpaceBarPlayer || space == SpaceBarOpponent {
+	if space == SpaceHomePlayer || space == SpaceHomeOpponent || space == SpaceBarPlayer || space == SpaceBarOpponent {
 		return 25
 	} else if player == 1 {
 		return space
@@ -465,42 +533,10 @@ func spaceValue(player int, space int) int {
 
 func PseudoPips(player int, space int) int {
 	v := 6 + spaceValue(player, space) + int(math.Exp(float64(spaceValue(player, space))*0.2))*2
-	if (player == 1 && (space > 6 || space == SpaceBarPlayer)) || (player == 2 && (space < 19 || space == SpaceBarOpponent)) {
+	if space == SpaceHomePlayer || space == SpaceHomeOpponent || (player == 1 && (space > 6 || space == SpaceBarPlayer)) || (player == 2 && (space < 19 || space == SpaceBarOpponent)) {
 		v += 24
 	}
 	return v
-}
-
-func spaceDiff(from int, to int) int {
-	if from < 0 || from > 27 || to < 0 || to > 27 {
-		return 0
-	} else if to == SpaceBarPlayer || to == SpaceBarOpponent {
-		return 0
-	} else if from == SpaceHomePlayer || from == SpaceHomeOpponent {
-		return 0
-	}
-
-	if (from == SpaceBarPlayer || from == SpaceBarOpponent) && (to == SpaceBarPlayer || to == SpaceBarOpponent || to == SpaceHomePlayer || to == SpaceHomeOpponent) {
-		return 0
-	}
-
-	if from == SpaceBarPlayer {
-		return 25 - to
-	} else if from == SpaceBarOpponent {
-		return to
-	}
-
-	if to == SpaceHomePlayer {
-		return from
-	} else if to == SpaceHomeOpponent {
-		return 25 - from
-	}
-
-	diff := to - from
-	if diff < 0 {
-		return diff * -1
-	}
-	return diff
 }
 
 func movesEqual(a [][]int, b [][]int) bool {
