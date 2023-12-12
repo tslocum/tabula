@@ -15,7 +15,7 @@ Each game state is initially scored as follows:
 score = pips*pipsWeight + blots*blotsWeight + hits*hitsWeight
 ```
 
-The pips weight is positive. The blots and hits weights are negative.
+The pips and blots weights are positive. The hits weight is negative.
 
 When past the opponent (there is no longer any chance of hitting the opponent)
 the game state is scored as follows:

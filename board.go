@@ -9,7 +9,7 @@ import (
 
 var (
 	AnalysisBufferSize    = 128
-	SubAnalysisBufferSize = 1024
+	SubAnalysisBufferSize = 3072
 )
 
 const (
@@ -148,6 +148,14 @@ func (b Board) spaceDiff(player int, from int, to int) int {
 
 // HaveRoll returns whether the player has a sufficient die roll for the specified move.
 func (b Board) HaveRoll(from int, to int, player int) bool {
+	barSpace := SpaceBarPlayer
+	if player == 2 {
+		barSpace = SpaceBarOpponent
+	}
+	if b[barSpace] != 0 && from != barSpace {
+		return false
+	}
+
 	delta := int8(b.spaceDiff(player, from, to))
 	if delta == 0 {
 		return false
@@ -244,7 +252,8 @@ func (b Board) _available(player int) [][]int {
 
 	if b.Acey() && ((player == 1 && b[SpaceEnteredPlayer] == 0) || (player == 2 && b[SpaceEnteredOpponent] == 0)) && b[homeSpace] != 0 {
 		for space := 1; space < 25; space++ {
-			if b.HaveRoll(homeSpace, space, player) {
+			v := b[space]
+			if ((player == 1 && v >= -1) || (player == 2 && v <= 1)) && b.HaveRoll(homeSpace, space, player) {
 				moves = append(moves, []int{homeSpace, space})
 			}
 		}
@@ -469,6 +478,7 @@ func (b Board) Analyze(available [][][]int, result *[]*Analysis) {
 		var r *[]*Analysis
 		if reuseIndex < reuseLen {
 			r = reuse[reuseIndex]
+			*r = (*r)[:0]
 			reuseIndex++
 		} else {
 			v := make([]*Analysis, 0, SubAnalysisBufferSize)
