@@ -215,3 +215,15 @@ func BenchmarkAnalyze(b *testing.B) {
 		})
 	}
 }
+
+func BenchmarkChooseDoubles(b *testing.B) {
+	board := Board{0, -2, -2, -3, -1, -2, -3, 0, -2, 0, 0, 0, 0, 0, 0, 0, 2, 4, 0, 2, 2, 5, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 1, 1, 1}
+	analysis := make([]*Analysis, 0, AnalysisBufferSize)
+
+	var doubles int
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		doubles = board.ChooseDoubles(&analysis)
+	}
+	_ = doubles
+}
