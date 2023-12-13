@@ -53,7 +53,7 @@ func init() {
 
 type Analysis struct {
 	Board Board
-	Moves [][]int
+	Moves [4][2]int
 	Past  bool
 	Score float64
 
@@ -79,9 +79,12 @@ type Analysis struct {
 func (a *Analysis) _analyze() {
 	var hs int
 	o := opponent(a.player)
-	for i := 0; i < len(a.Moves); i++ {
+	for i := 0; i < 4; i++ {
 		move := a.Moves[i]
-		checkers := a.Board.Checkers(o, move[1])
+		if move[0] == 0 && move[1] == 0 {
+			break
+		}
+		checkers := checkers(o, a.Board[move[1]])
 		if checkers == 1 {
 			hs += PseudoPips(o, move[1])
 		}

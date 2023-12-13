@@ -168,7 +168,7 @@ func BenchmarkAvailable(b *testing.B) {
 			board[SpaceRoll3] = c.roll3
 			board[SpaceRoll4] = c.roll4
 
-			var available [][][]int
+			var available [][4][2]int
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				available, _ = board.Available(1)
@@ -226,4 +226,16 @@ func BenchmarkChooseDoubles(b *testing.B) {
 		doubles = board.ChooseDoubles(&analysis)
 	}
 	_ = doubles
+}
+
+func BenchmarkMayBearOff(b *testing.B) {
+	board := NewBoard(false)
+
+	var allowed bool
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		allowed = board.MayBearOff(1)
+	}
+
+	_ = allowed
 }
