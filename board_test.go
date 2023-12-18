@@ -96,6 +96,23 @@ func TestBlots(t *testing.T) {
 	}
 }
 
+func TestHitScore(t *testing.T) {
+	b := Board{0, 0, -2, -2, -2, 4, 0, -1, 0, 0, -2, 4, 0, -2, -1, 0, -2, 4, 0, 2, 0, 0, 0, 0, -1, 0, 1, 0, 4, 1, 0, 0, 1, 1, 1}
+	available, _ := b.Available(1)
+	analysis := make([]*Analysis, 0, AnalysisBufferSize)
+	b.Analyze(available, &analysis)
+
+	expectedHits := []int{296, 341, 0, 296, 0, 296}
+	if len(analysis) != len(expectedHits) {
+		t.Errorf("unexpected analysis length: expected %d, got %d", len(expectedHits), len(analysis))
+	}
+	for i, a := range analysis {
+		if a.hitScore != expectedHits[i] {
+			t.Errorf("unexpected hit score for analysis %d: expected %d, got %d", i, expectedHits[i], a.hitScore)
+		}
+	}
+}
+
 func TestAnalyze(t *testing.T) {
 	b := NewBoard(false)
 	b = b.Move(24, 23, 1)

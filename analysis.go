@@ -86,7 +86,7 @@ func (a *Analysis) _analyze() {
 		}
 		checkers := checkers(o, a.Board[move[1]])
 		if checkers == 1 {
-			hs += PseudoPips(o, move[1])
+			hs += PseudoPips(a.player, move[1])
 		}
 		a.Board = a.Board.Move(move[0], move[1], a.player).UseRoll(move[0], move[1], a.player)
 	}
