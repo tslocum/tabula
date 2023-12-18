@@ -187,7 +187,7 @@ func BenchmarkAvailable(b *testing.B) {
 			board[SpaceRoll3] = c.roll3
 			board[SpaceRoll4] = c.roll4
 
-			var available [][4][2]int
+			var available [][4][2]int8
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				available, _ = board.Available(1)

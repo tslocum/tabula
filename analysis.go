@@ -53,7 +53,7 @@ func init() {
 
 type Analysis struct {
 	Board Board
-	Moves [4][2]int
+	Moves [4][2]int8
 	Past  bool
 	Score float64
 

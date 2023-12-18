@@ -14,17 +14,17 @@ var (
 )
 
 const (
-	SpaceHomePlayer      = 0
-	SpaceHomeOpponent    = 25
-	SpaceBarPlayer       = 26
-	SpaceBarOpponent     = 27
-	SpaceRoll1           = 28
-	SpaceRoll2           = 29
-	SpaceRoll3           = 30
-	SpaceRoll4           = 31
-	SpaceEnteredPlayer   = 32 // Whether the player has fully entered the board. Only used in acey-deucey games.
-	SpaceEnteredOpponent = 33 // Whether the opponent has fully entered the board. Only used in acey-deucey games.
-	SpaceAcey            = 34 // 0 - Backgammon, 1 - Acey-deucey.
+	SpaceHomePlayer      int8 = 0
+	SpaceHomeOpponent    int8 = 25
+	SpaceBarPlayer       int8 = 26
+	SpaceBarOpponent     int8 = 27
+	SpaceRoll1           int8 = 28
+	SpaceRoll2           int8 = 29
+	SpaceRoll3           int8 = 30
+	SpaceRoll4           int8 = 31
+	SpaceEnteredPlayer   int8 = 32 // Whether the player has fully entered the board. Only used in acey-deucey games.
+	SpaceEnteredOpponent int8 = 33 // Whether the opponent has fully entered the board. Only used in acey-deucey games.
+	SpaceAcey            int8 = 34 // 0 - Backgammon, 1 - Acey-deucey.
 )
 
 const (
@@ -49,7 +49,7 @@ func (b Board) SetValue(space int, value int8) Board {
 }
 
 // Move moves a checker on the board.
-func (b Board) Move(from int, to int, player int) Board {
+func (b Board) Move(from int8, to int8, player int) Board {
 	if b[from] == 0 || (player == 1 && b[from] < 0) || (player == 2 && b[from] > 0) {
 		log.Panic("illegal move: no from checker", from, to, player)
 	} else if b[to] != 0 {
@@ -67,7 +67,7 @@ func (b Board) Move(from int, to int, player int) Board {
 	}
 	delta := int8(1)
 	if player == 2 {
-		delta = int8(-1)
+		delta = -1
 	}
 	b[from], b[to] = b[from]-delta, b[to]+delta
 	return b
@@ -110,7 +110,7 @@ func (b Board) MayBearOff(player int) bool {
 	return true
 }
 
-func (b Board) spaceDiff(player int, from int, to int) int {
+func (b Board) spaceDiff(player int, from int8, to int8) int8 {
 	switch {
 	case from < 0 || from > 27 || to < 0 || to > 27:
 		return 0
@@ -145,7 +145,7 @@ func (b Board) spaceDiff(player int, from int, to int) int {
 }
 
 // HaveRoll returns whether the player has a sufficient die roll for the specified move.
-func (b Board) HaveRoll(from int, to int, player int) bool {
+func (b Board) HaveRoll(from int8, to int8, player int) bool {
 	barSpace := SpaceBarPlayer
 	if player == 2 {
 		barSpace = SpaceBarOpponent
@@ -154,7 +154,7 @@ func (b Board) HaveRoll(from int, to int, player int) bool {
 		return false
 	}
 
-	delta := int8(b.spaceDiff(player, from, to))
+	delta := b.spaceDiff(player, from, to)
 	if delta == 0 {
 		return false
 	}
@@ -185,8 +185,8 @@ func (b Board) HaveRoll(from int, to int, player int) bool {
 }
 
 // UseRoll uses a die roll.
-func (b Board) UseRoll(from int, to int, player int) Board {
-	delta := int8(b.spaceDiff(player, from, to))
+func (b Board) UseRoll(from int8, to int8, player int) Board {
+	delta := b.spaceDiff(player, from, to)
 	if delta == 0 {
 		b.Print()
 		log.Panic("unknown space diff", from, to, player)
@@ -244,7 +244,7 @@ func (b Board) UseRoll(from int, to int, player int) Board {
 	return b
 }
 
-func (b Board) _available(player int) [][2]int {
+func (b Board) _available(player int) [][2]int8 {
 	homeSpace := SpaceHomePlayer
 	barSpace := SpaceBarPlayer
 	opponentBarSpace := SpaceBarOpponent
@@ -256,23 +256,23 @@ func (b Board) _available(player int) [][2]int {
 	mayBearOff := b.MayBearOff(player)
 	onBar := b[barSpace] != 0
 
-	var moves [][2]int
+	var moves [][2]int8
 
 	if b[SpaceAcey] == 1 && ((player == 1 && b[SpaceEnteredPlayer] == 0) || (player == 2 && b[SpaceEnteredOpponent] == 0)) && b[homeSpace] != 0 {
-		for space := 1; space < 25; space++ {
+		for space := int8(1); space < 25; space++ {
 			v := b[space]
 			if ((player == 1 && v >= -1) || (player == 2 && v <= 1)) && b.HaveRoll(homeSpace, space, player) {
-				moves = append(moves, [2]int{homeSpace, space})
+				moves = append(moves, [2]int8{homeSpace, space})
 			}
 		}
 	}
 
-	for from := 0; from < 28; from++ {
+	for from := int8(0); from < 28; from++ {
 		if from == SpaceHomePlayer || from == SpaceHomeOpponent || from == opponentBarSpace || checkers(player, b[from]) == 0 || (onBar && from != barSpace) {
 			continue
 		}
 		if player == 1 {
-			for to := 0; to < from; to++ {
+			for to := int8(0); to < from; to++ {
 				if to == SpaceBarPlayer || to == SpaceBarOpponent || to == SpaceHomeOpponent || (to == SpaceHomePlayer && !mayBearOff) {
 					continue
 				}
@@ -280,7 +280,7 @@ func (b Board) _available(player int) [][2]int {
 				if (player == 1 && v < -1) || (player == 2 && v > 1) || !b.HaveRoll(from, to, player) {
 					continue
 				}
-				moves = append(moves, [2]int{from, to})
+				moves = append(moves, [2]int8{from, to})
 			}
 		} else { // TODO clean up
 			start := from + 1
@@ -295,7 +295,7 @@ func (b Board) _available(player int) [][2]int {
 				if (player == 1 && v < -1) || (player == 2 && v > 1) || !b.HaveRoll(from, to, player) {
 					continue
 				}
-				moves = append(moves, [2]int{from, to})
+				moves = append(moves, [2]int8{from, to})
 			}
 		}
 	}
@@ -304,11 +304,11 @@ func (b Board) _available(player int) [][2]int {
 }
 
 // Available returns legal moves available.
-func (b Board) Available(player int) ([][4][2]int, []Board) {
-	var allMoves [][4][2]int
+func (b Board) Available(player int) ([][4][2]int8, []Board) {
+	var allMoves [][4][2]int8
 
 	resultMutex := &sync.Mutex{}
-	movesFound := func(moves [4][2]int) bool {
+	movesFound := func(moves [4][2]int8) bool {
 		resultMutex.Lock()
 		for i := range allMoves {
 			if movesEqual(allMoves[i], moves) {
@@ -327,7 +327,7 @@ func (b Board) Available(player int) ([][4][2]int, []Board) {
 		newBoard := b.Move(move[0], move[1], player).UseRoll(move[0], move[1], player)
 		newAvailable := newBoard._available(player)
 		if len(newAvailable) == 0 {
-			moves := [4][2]int{move}
+			moves := [4][2]int8{move}
 			if !movesFound(moves) {
 				allMoves = append(allMoves, moves)
 				boards = append(boards, newBoard)
@@ -338,7 +338,7 @@ func (b Board) Available(player int) ([][4][2]int, []Board) {
 			newBoard2 := newBoard.Move(move2[0], move2[1], player).UseRoll(move2[0], move2[1], player)
 			newAvailable2 := newBoard2._available(player)
 			if len(newAvailable2) == 0 {
-				moves := [4][2]int{move, move2}
+				moves := [4][2]int8{move, move2}
 				if !movesFound(moves) {
 					allMoves = append(allMoves, moves)
 					boards = append(boards, newBoard2)
@@ -350,7 +350,7 @@ func (b Board) Available(player int) ([][4][2]int, []Board) {
 				newBoard3 := newBoard2.Move(move3[0], move3[1], player).UseRoll(move3[0], move3[1], player)
 				newAvailable3 := newBoard3._available(player)
 				if len(newAvailable3) == 0 {
-					moves := [4][2]int{move, move2, move3}
+					moves := [4][2]int8{move, move2, move3}
 					if !movesFound(moves) {
 						allMoves = append(allMoves, moves)
 						boards = append(boards, newBoard3)
@@ -360,7 +360,7 @@ func (b Board) Available(player int) ([][4][2]int, []Board) {
 				}
 				for _, move4 := range newAvailable3 {
 					newBoard4 := newBoard3.Move(move4[0], move4[1], player).UseRoll(move4[0], move4[1], player)
-					moves := [4][2]int{move, move2, move3, move4}
+					moves := [4][2]int8{move, move2, move3, move4}
 					if !movesFound(moves) {
 						allMoves = append(allMoves, moves)
 						boards = append(boards, newBoard4)
@@ -370,7 +370,7 @@ func (b Board) Available(player int) ([][4][2]int, []Board) {
 			}
 		}
 	}
-	var newMoves [][4][2]int
+	var newMoves [][4][2]int8
 	for i := 0; i < len(allMoves); i++ {
 		l := 0
 		for j := 0; j < 4; j++ {
@@ -422,7 +422,7 @@ func (b Board) Pips(player int) int {
 	} else {
 		pips += int(checkers(player, b[SpaceBarOpponent])) * PseudoPips(player, SpaceBarOpponent)
 	}
-	for space := 1; space < 25; space++ {
+	for space := int8(1); space < 25; space++ {
 		pips += int(checkers(player, b[space])) * PseudoPips(player, space)
 	}
 	return pips
@@ -431,7 +431,7 @@ func (b Board) Pips(player int) int {
 func (b Board) Blots(player int) int {
 	o := opponent(player)
 	var pips int
-	for space := 1; space < 25; space++ {
+	for space := int8(1); space < 25; space++ {
 		if checkers(player, b[space]) == 1 {
 			pips += PseudoPips(o, space)
 		}
@@ -454,7 +454,7 @@ func (b Board) evaluate(player int, hitScore int, a *Analysis) {
 	a.hitScore = hitScore
 }
 
-func (b Board) Evaluation(player int, hitScore int, moves [4][2]int) *Analysis {
+func (b Board) Evaluation(player int, hitScore int, moves [4][2]int8) *Analysis {
 	a := &Analysis{
 		Board:  b,
 		Moves:  moves,
@@ -466,7 +466,7 @@ func (b Board) Evaluation(player int, hitScore int, moves [4][2]int) *Analysis {
 	return a
 }
 
-func (b Board) Analyze(available [][4][2]int, result *[]*Analysis) {
+func (b Board) Analyze(available [][4][2]int8, result *[]*Analysis) {
 	if len(available) == 0 {
 		*result = (*result)[:0]
 		return
@@ -556,7 +556,7 @@ func (b Board) ChooseDoubles(result *[]*Analysis) int {
 	bestDoubles := 6
 	bestScore := math.MaxFloat64
 
-	var available [][4][2]int
+	var available [][4][2]int8
 	for i := 0; i < 6; i++ {
 		doubles := int8(i + 1)
 		bc := b
@@ -584,17 +584,17 @@ func opponent(player int) int {
 	return 1
 }
 
-func spaceValue(player int, space int) int {
+func spaceValue(player int, space int8) int {
 	if space == SpaceHomePlayer || space == SpaceHomeOpponent || space == SpaceBarPlayer || space == SpaceBarOpponent {
 		return 25
 	} else if player == 1 {
-		return space
+		return int(space)
 	} else {
-		return 25 - space
+		return int(25 - space)
 	}
 }
 
-func PseudoPips(player int, space int) int {
+func PseudoPips(player int, space int8) int {
 	v := 6 + spaceValue(player, space) + int(math.Exp(float64(spaceValue(player, space))*0.2))*2
 	if space == SpaceHomePlayer || space == SpaceHomeOpponent || (player == 1 && (space > 6 || space == SpaceBarPlayer)) || (player == 2 && (space < 19 || space == SpaceBarOpponent)) {
 		v += 24
@@ -602,7 +602,7 @@ func PseudoPips(player int, space int) int {
 	return v
 }
 
-func movesEqual(a [4][2]int, b [4][2]int) bool {
+func movesEqual(a [4][2]int8, b [4][2]int8) bool {
 	if a[0][0] == b[0][0] && a[0][1] == b[0][1] { // 1
 		if a[1][0] == b[1][0] && a[1][1] == b[1][1] { // 2
 			if (a[2][0] == b[2][0] && a[2][1] == b[2][1] && a[3][0] == b[3][0] && a[3][1] == b[3][1]) || // 3,4
