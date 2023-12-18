@@ -9,9 +9,9 @@ import (
 var QueueBufferSize = 4096000
 
 var (
-	WeightBlot     = 1.05
+	WeightBlot     = 1.025
 	WeightHit      = -1.0
-	WeightOppScore = -1.5
+	WeightOppScore = -3.0
 )
 
 // rollProbabilities is a table of the probability of each roll combination.
