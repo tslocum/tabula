@@ -10,7 +10,9 @@ import (
 )
 
 func main() {
+	var address string
 	var pips bool
+	flag.StringVar(&address, "address", "", "Listen for BEI connections on specified address (TCP)")
 	flag.BoolVar(&pips, "pips", false, "Print table of pseudopip values")
 	flag.Parse()
 
@@ -21,6 +23,11 @@ func main() {
 			fmt.Printf("| %d | %d |\n", space, tabula.PseudoPips(1, space))
 		}
 		return
+	}
+
+	if address != "" {
+		s := tabula.NewBEIServer()
+		s.Listen(address)
 	}
 
 	//b := tabula.Board{0, 0, 0, 0, 0, -1, 8, 0, 4, 0, 0, 0, 0, 0, -1, -1, 0, -1, -1, -1, 1, -2, -2, -3, -2, 0, 2, 0, 0, 0, 0, 4, 1, 1, 0}
