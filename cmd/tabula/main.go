@@ -13,6 +13,7 @@ func main() {
 	var pips bool
 	flag.StringVar(&address, "address", "", "Listen for BEI connections on specified address (TCP)")
 	flag.BoolVar(&pips, "pips", false, "Print table of pseudopip values")
+	flag.BoolVar(&tabula.Verbose, "verbose", false, "Print state of each request")
 	flag.Parse()
 
 	if pips {

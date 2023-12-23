@@ -6,6 +6,8 @@ import (
 	"sync"
 )
 
+var Verbose bool
+
 var QueueBufferSize = 4096000
 
 var (

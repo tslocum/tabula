@@ -174,5 +174,14 @@ func parseState(buf []byte) (Board, error) {
 			b[SpaceEnteredOpponent] = 0
 		}
 	}
+
+	if Verbose {
+		var logMessage []byte
+		for _, v := range b {
+			logMessage = append(logMessage, []byte(fmt.Sprintf("%4d", int(v)))...)
+		}
+		log.Println(string(logMessage))
+	}
+
 	return b, nil
 }
