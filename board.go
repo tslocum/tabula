@@ -543,9 +543,92 @@ func (b Board) Analyze(available [][4][2]int8, result *[]*Analysis) {
 		}
 	}
 
+	if b.StartingPosition(1) && b[SpaceRoll1] != b[SpaceRoll2] {
+		r1, r2 := b[SpaceRoll1], b[SpaceRoll2]
+		if r2 > r1 {
+			r1, r2 = r2, r1
+		}
+		var opening [4][2]int8
+		if r1 == r2 {
+			switch r1 {
+			case 1:
+				opening = [4][2]int8{{24, 23}, {24, 23}, {6, 5}, {6, 5}}
+			case 2:
+				opening = [4][2]int8{{13, 11}, {13, 11}, {11, 9}, {11, 9}}
+			case 3:
+				opening = [4][2]int8{{13, 10}, {13, 10}, {10, 7}, {10, 7}}
+			case 4:
+				opening = [4][2]int8{{13, 9}, {13, 9}, {6, 2}, {6, 2}}
+			case 5:
+				opening = [4][2]int8{{13, 8}, {13, 8}, {8, 3}, {8, 3}}
+			case 6:
+				opening = [4][2]int8{{24, 18}, {24, 18}, {13, 7}, {13, 7}}
+			}
+		} else {
+			switch r1 {
+			case 2:
+				opening = [4][2]int8{{13, 11}, {6, 5}}
+			case 3:
+				switch r2 {
+				case 1:
+					opening = [4][2]int8{{8, 5}, {6, 5}}
+				case 2:
+					opening = [4][2]int8{{13, 11}, {13, 10}}
+				}
+			case 4:
+				switch r2 {
+				case 1:
+					opening = [4][2]int8{{24, 23}, {13, 9}}
+				case 2:
+					opening = [4][2]int8{{8, 4}, {6, 4}}
+				case 3:
+					opening = [4][2]int8{{13, 10}, {13, 9}}
+				}
+			case 5:
+				switch r2 {
+				case 1:
+					opening = [4][2]int8{{24, 23}, {13, 8}}
+				case 2:
+					opening = [4][2]int8{{24, 22}, {13, 8}}
+				case 3:
+					opening = [4][2]int8{{8, 3}, {6, 3}}
+				case 4:
+					opening = [4][2]int8{{24, 20}, {13, 8}}
+				}
+			case 6:
+				switch r2 {
+				case 1:
+					opening = [4][2]int8{{13, 7}, {8, 7}}
+				case 2:
+					opening = [4][2]int8{{24, 18}, {13, 11}}
+				case 3:
+					opening = [4][2]int8{{24, 18}, {13, 10}}
+				case 4:
+					opening = [4][2]int8{{8, 2}, {6, 2}}
+				case 5:
+					opening = [4][2]int8{{24, 18}, {18, 13}}
+				}
+			}
+		}
+		const priorityScore = -1000000
+		for _, a := range *result {
+			if movesEqual(a.Moves, opening) {
+				a.Score = priorityScore
+				break
+			}
+		}
+	}
+
 	sort.Slice(*result, func(i, j int) bool {
 		return (*result)[i].Score < (*result)[j].Score
 	})
+}
+
+func (b Board) StartingPosition(player int) bool {
+	if player == 1 {
+		return b[6] == 5 && b[8] == 3 && b[13] == 5 && b[24] == 2
+	}
+	return b[1] == -2 && b[12] == -5 && b[17] == -3 && b[19] == -5
 }
 
 func (b Board) ChooseDoubles(result *[]*Analysis) int {
