@@ -9,9 +9,9 @@ import (
 )
 
 func main() {
-	var address string
+	var beiAddress string
 	var pips bool
-	flag.StringVar(&address, "address", "", "Listen for BEI connections on specified address (TCP)")
+	flag.StringVar(&beiAddress, "bei", "", "Listen for BEI connections on specified address (TCP)")
 	flag.BoolVar(&pips, "pips", false, "Print table of pseudopip values")
 	flag.BoolVar(&tabula.Verbose, "verbose", false, "Print state of each request")
 	flag.Parse()
@@ -25,9 +25,9 @@ func main() {
 		return
 	}
 
-	if address != "" {
+	if beiAddress != "" {
 		s := tabula.NewBEIServer()
-		s.Listen(address)
+		s.Listen(beiAddress)
 	}
 
 	//b := tabula.Board{0, 0, 0, 0, 0, -1, 8, 0, 4, 0, 0, 0, 0, 0, -1, -1, 0, -1, -1, -1, 1, -2, -2, -3, -2, 0, 2, 0, 0, 0, 0, 4, 1, 1, 0}
