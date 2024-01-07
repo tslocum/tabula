@@ -24,11 +24,17 @@ const (
 	SpaceRoll4           int8 = 31
 	SpaceEnteredPlayer   int8 = 32 // Whether the player has fully entered the board. Only used in acey-deucey games.
 	SpaceEnteredOpponent int8 = 33 // Whether the opponent has fully entered the board. Only used in acey-deucey games.
-	SpaceAcey            int8 = 34 // 0 - Backgammon, 1 - Acey-deucey.
+	SpaceVariant         int8 = 34 // 0 - Backgammon, 1 - Acey-deucey, 2 - Tabula.
 )
 
 const (
 	boardSpaces = 35
+)
+
+const (
+	VariantBackgammon int8 = 0
+	VariantAceyDeucey int8 = 1
+	VariantTabula     int8 = 2
 )
 
 // Board represents the state of a game. It contains spaces for the checkers,
@@ -36,8 +42,8 @@ const (
 type Board [boardSpaces]int8
 
 // NewBoard returns a new board with checkers placed in their starting positions.
-func NewBoard(acey bool) Board {
-	if acey {
+func NewBoard(variant int8) Board {
+	if variant != VariantBackgammon {
 		return Board{15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -15, 0, 0, 0, 0, 0, 0, 0, 0, 1}
 	}
 	return Board{0, -2, 0, 0, 0, 0, 5, 0, 3, 0, 0, 0, -5, 5, 0, 0, 0, -3, 0, -5, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0}
@@ -84,7 +90,7 @@ func checkers(player int, v int8) int8 {
 }
 
 func (b Board) MayBearOff(player int) bool {
-	if b[SpaceAcey] == 1 && ((player == 1 && b[SpaceEnteredPlayer] == 0) || (player == 2 && b[SpaceEnteredOpponent] == 0)) {
+	if b[SpaceVariant] != VariantBackgammon && ((player == 1 && b[SpaceEnteredPlayer] == 0) || (player == 2 && b[SpaceEnteredOpponent] == 0)) {
 		return false
 	}
 	barSpace := SpaceBarPlayer
@@ -123,7 +129,7 @@ func (b Board) spaceDiff(player int, from int8, to int8) int8 {
 	case to == SpaceHomeOpponent:
 		return 25 - from
 	case from == SpaceHomePlayer || from == SpaceHomeOpponent:
-		if b[SpaceAcey] == 1 {
+		if b[SpaceVariant] != VariantBackgammon {
 			if player == 1 && from == SpaceHomePlayer && b[SpaceEnteredPlayer] == 0 {
 				return 25 - to
 			} else if player == 2 && from == SpaceHomeOpponent && b[SpaceEnteredOpponent] == 0 {
@@ -169,7 +175,7 @@ func (b Board) HaveRoll(from int8, to int8, player int) bool {
 		playerDelta = 1
 		playerHomeEnd = 19
 	}
-	if b.MayBearOff(player) && b[SpaceAcey] == 0 {
+	if b.MayBearOff(player) && b[SpaceVariant] == VariantBackgammon {
 		allowGreater := true
 		for checkSpace := 0; checkSpace < 6-int(delta); checkSpace++ {
 			if checkers(player, b[playerHomeEnd+checkSpace*playerDelta]) != 0 {
@@ -214,7 +220,7 @@ func (b Board) UseRoll(from int8, to int8, player int) Board {
 		playerHomeEnd = 19
 	}
 	var allowGreater bool
-	if b.MayBearOff(player) && b[SpaceAcey] == 0 {
+	if b.MayBearOff(player) && b[SpaceVariant] == VariantBackgammon {
 		allowGreater = true
 		for checkSpace := int8(0); checkSpace < 6-delta; checkSpace++ {
 			if checkers(player, b[playerHomeEnd+int(checkSpace)*playerDelta]) != 0 {
@@ -258,7 +264,7 @@ func (b Board) _available(player int) [][2]int8 {
 
 	var moves [][2]int8
 
-	if b[SpaceAcey] == 1 && ((player == 1 && b[SpaceEnteredPlayer] == 0) || (player == 2 && b[SpaceEnteredOpponent] == 0)) && b[homeSpace] != 0 {
+	if b[SpaceVariant] != VariantBackgammon && ((player == 1 && b[SpaceEnteredPlayer] == 0) || (player == 2 && b[SpaceEnteredOpponent] == 0)) && b[homeSpace] != 0 {
 		for space := int8(1); space < 25; space++ {
 			v := b[space]
 			if ((player == 1 && v >= -1) || (player == 2 && v <= 1)) && b.HaveRoll(homeSpace, space, player) {
@@ -410,7 +416,7 @@ func (b Board) Past() bool {
 
 func (b Board) Pips(player int) int {
 	var pips int
-	if b[SpaceAcey] == 1 {
+	if b[SpaceVariant] != VariantBackgammon {
 		if player == 1 && b[SpaceEnteredPlayer] == 0 {
 			pips += int(checkers(player, b[SpaceHomePlayer])) * PseudoPips(player, SpaceHomePlayer)
 		} else if player == 2 && b[SpaceEnteredOpponent] == 0 {
@@ -632,7 +638,7 @@ func (b Board) StartingPosition(player int) bool {
 }
 
 func (b Board) ChooseDoubles(result *[]*Analysis) int {
-	if b[SpaceAcey] == 0 {
+	if b[SpaceVariant] != VariantAceyDeucey {
 		return 0
 	}
 

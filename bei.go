@@ -86,7 +86,7 @@ func (s *BEIServer) handleConnection(conn net.Conn) {
 				return
 			}
 
-			if b[SpaceAcey] != 1 {
+			if b[SpaceVariant] != VariantAceyDeucey {
 				log.Println("error: failed to choose roll: state does not represent acey-deucey game")
 				conn.Close()
 				return
@@ -163,16 +163,17 @@ func parseState(buf []byte) (Board, error) {
 	if state.Roll1 == state.Roll2 {
 		b[SpaceRoll3], b[SpaceRoll4] = int8(state.Roll1), int8(state.Roll2)
 	}
-	b[SpaceEnteredPlayer] = 1
-	b[SpaceEnteredOpponent] = 1
-	if state.Acey {
-		b[SpaceAcey] = 1
+	if int8(state.Variant) != VariantBackgammon {
+		b[SpaceVariant] = int8(state.Variant)
 		if !state.Entered1 {
 			b[SpaceEnteredPlayer] = 0
 		}
 		if !state.Entered2 {
 			b[SpaceEnteredOpponent] = 0
 		}
+	} else {
+		b[SpaceEnteredPlayer] = 1
+		b[SpaceEnteredOpponent] = 1
 	}
 
 	if Verbose {

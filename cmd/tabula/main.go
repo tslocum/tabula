@@ -37,7 +37,7 @@ func main() {
 	analysis := make([]*tabula.Analysis, 0, tabula.AnalysisBufferSize)
 	for r1 := 1; r1 <= 6; r1++ {
 		for r2 := 1; r2 <= 6; r2++ {
-			b := tabula.NewBoard(false)
+			b := tabula.NewBoard(tabula.VariantBackgammon)
 			b[tabula.SpaceRoll1] = int8(r1)
 			b[tabula.SpaceRoll2] = int8(r2)
 			if r1 == r2 {
