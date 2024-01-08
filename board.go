@@ -521,18 +521,18 @@ func (b Board) Pips(player int8) int {
 	var pips int
 	if b[SpaceVariant] != VariantBackgammon {
 		if player == 1 && b[SpaceEnteredPlayer] == 0 {
-			pips += int(checkers(player, b[SpaceHomePlayer])) * PseudoPips(player, SpaceHomePlayer)
+			pips += int(checkers(player, b[SpaceHomePlayer])) * PseudoPips(player, SpaceHomePlayer, b[SpaceVariant])
 		} else if player == 2 && b[SpaceEnteredOpponent] == 0 {
-			pips += int(checkers(player, b[SpaceHomeOpponent])) * PseudoPips(player, SpaceHomeOpponent)
+			pips += int(checkers(player, b[SpaceHomeOpponent])) * PseudoPips(player, SpaceHomeOpponent, b[SpaceVariant])
 		}
 	}
 	if player == 1 {
-		pips += int(checkers(player, b[SpaceBarPlayer])) * PseudoPips(player, SpaceBarPlayer)
+		pips += int(checkers(player, b[SpaceBarPlayer])) * PseudoPips(player, SpaceBarPlayer, b[SpaceVariant])
 	} else {
-		pips += int(checkers(player, b[SpaceBarOpponent])) * PseudoPips(player, SpaceBarOpponent)
+		pips += int(checkers(player, b[SpaceBarOpponent])) * PseudoPips(player, SpaceBarOpponent, b[SpaceVariant])
 	}
 	for space := int8(1); space < 25; space++ {
-		pips += int(checkers(player, b[space])) * PseudoPips(player, space)
+		pips += int(checkers(player, b[space])) * PseudoPips(player, space, b[SpaceVariant])
 	}
 	return pips
 }
@@ -542,7 +542,7 @@ func (b Board) Blots(player int8) int {
 	var pips int
 	for space := int8(1); space < 25; space++ {
 		if checkers(player, b[space]) == 1 {
-			pips += PseudoPips(o, space)
+			pips += PseudoPips(o, space, b[SpaceVariant])
 		}
 	}
 	return pips
@@ -776,19 +776,19 @@ func opponent(player int8) int8 {
 	return 1
 }
 
-func spaceValue(player int8, space int8) int {
+func spaceValue(player int8, space int8, variant int8) int {
 	if space == SpaceHomePlayer || space == SpaceHomeOpponent || space == SpaceBarPlayer || space == SpaceBarOpponent {
 		return 25
-	} else if player == 1 {
+	} else if player == 1 || variant == VariantTabula {
 		return int(space)
 	} else {
 		return int(25 - space)
 	}
 }
 
-func PseudoPips(player int8, space int8) int {
-	v := 6 + spaceValue(player, space) + int(math.Exp(float64(spaceValue(player, space))*0.2))*2
-	if space == SpaceHomePlayer || space == SpaceHomeOpponent || (player == 1 && (space > 6 || space == SpaceBarPlayer)) || (player == 2 && (space < 19 || space == SpaceBarOpponent)) {
+func PseudoPips(player int8, space int8, variant int8) int {
+	v := 6 + spaceValue(player, space, variant) + int(math.Exp(float64(spaceValue(player, space, variant))*0.2))*2
+	if space == SpaceHomePlayer || space == SpaceHomeOpponent || (variant == VariantTabula && space < 13) || (variant != VariantTabula && ((player == 1 && (space > 6 || space == SpaceBarPlayer)) || (player == 2 && (space < 19 || space == SpaceBarOpponent)))) {
 		v += 24
 	}
 	return v

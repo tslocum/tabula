@@ -18,10 +18,13 @@ func main() {
 	flag.Parse()
 
 	if pips {
-		fmt.Println("| Space | Pseudopips |")
-		fmt.Println("| --- | --- |")
-		for space := int8(1); space <= 25; space++ {
-			fmt.Printf("| %d | %d |\n", space, tabula.PseudoPips(1, space))
+		for player := int8(1); player < 3; player++ {
+			fmt.Printf("Player %d:\n", player)
+			fmt.Println("| Space | Pseudopips |")
+			fmt.Println("| --- | --- |")
+			for space := int8(1); space <= 25; space++ {
+				fmt.Printf("| %d | %d |\n", space, tabula.PseudoPips(player, space, tabula.VariantBackgammon))
+			}
 		}
 		return
 	}
@@ -37,8 +40,6 @@ func main() {
 
 	analysis := make([]*tabula.Analysis, 0, tabula.AnalysisBufferSize)
 
-	// should be 3/1 then 5/0 in acey, then fix backgammon movement
-	// test cases for issues first then fix until tests pass
 	b := tabula.Board{0, 5, 2, 5, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, -2, -2, -2, -3, -3, -2, 0, 1, 0, 0, 0, 5, 2, 0, 0, 1, 1, 1}
 	log.Println(b[24])
 	b.Print()
