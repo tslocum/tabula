@@ -55,7 +55,7 @@ func (b Board) SetValue(space int, value int8) Board {
 }
 
 // Move moves a checker on the board.
-func (b Board) Move(from int8, to int8, player int) Board {
+func (b Board) Move(from int8, to int8, player int8) Board {
 	if b[from] == 0 || (player == 1 && b[from] < 0) || (player == 2 && b[from] > 0) {
 		log.Panic("illegal move: no from checker", from, to, player)
 	} else if b[to] != 0 {
@@ -76,11 +76,18 @@ func (b Board) Move(from int8, to int8, player int) Board {
 		delta = -1
 	}
 	b[from], b[to] = b[from]-delta, b[to]+delta
+	if (player == 1 && from == SpaceHomePlayer && b[SpaceEnteredPlayer] == 0 && b[SpaceHomePlayer] == 0) || (player == 2 && from == SpaceHomeOpponent && b[SpaceEnteredOpponent] == 0 && b[SpaceHomeOpponent] == 0) {
+		if player == 1 {
+			b[SpaceEnteredPlayer] = 1
+		} else {
+			b[SpaceEnteredOpponent] = 1
+		}
+	}
 	return b
 }
 
 // checkers returns the number of checkers that belong to the spcified player at the provided space.
-func checkers(player int, v int8) int8 {
+func checkers(player int8, v int8) int8 {
 	if player == 1 && v > 0 {
 		return v
 	} else if player == 2 && v < 0 {
@@ -89,8 +96,10 @@ func checkers(player int, v int8) int8 {
 	return 0
 }
 
-func (b Board) MayBearOff(player int) bool {
+func (b Board) MayBearOff(player int8) bool {
 	if b[SpaceVariant] != VariantBackgammon && ((player == 1 && b[SpaceEnteredPlayer] == 0) || (player == 2 && b[SpaceEnteredOpponent] == 0)) {
+		return false
+	} else if b[SpaceVariant] == VariantTabula && !b.SecondHalf(player) {
 		return false
 	}
 	barSpace := SpaceBarPlayer
@@ -100,46 +109,78 @@ func (b Board) MayBearOff(player int) bool {
 	if checkers(player, b[barSpace]) != 0 {
 		return false
 	}
-	if player == 1 {
-		for space := 24; space > 6; space-- {
-			if checkers(player, b[space]) != 0 {
-				return false
+	if b[SpaceVariant] != VariantTabula {
+		if player == 1 {
+			for space := 24; space > 6; space-- {
+				if checkers(player, b[space]) != 0 {
+					return false
+				}
 			}
-		}
-	} else {
-		for space := 1; space < 19; space++ {
-			if checkers(player, b[space]) != 0 {
-				return false
+		} else {
+			for space := 1; space < 19; space++ {
+				if checkers(player, b[space]) != 0 {
+					return false
+				}
 			}
 		}
 	}
 	return true
 }
 
-func (b Board) spaceDiff(player int, from int8, to int8) int8 {
+func (b Board) spaceDiff(player int8, from int8, to int8) int8 {
 	switch {
 	case from < 0 || from > 27 || to < 0 || to > 27:
 		return 0
 	case to == SpaceBarPlayer || to == SpaceBarOpponent:
 		return 0
-	case (from == SpaceBarPlayer || from == SpaceBarOpponent) && (to == SpaceBarPlayer || to == SpaceBarOpponent || to == SpaceHomePlayer || to == SpaceHomeOpponent):
+	case (from == SpaceHomePlayer || from == SpaceHomeOpponent || from == SpaceBarPlayer || from == SpaceBarOpponent) && (to == SpaceBarPlayer || to == SpaceBarOpponent || to == SpaceHomePlayer || to == SpaceHomeOpponent):
 		return 0
 	case to == SpaceHomePlayer:
+		if player == 2 {
+			return 0
+		}
+		if b[SpaceVariant] == VariantTabula {
+			if (player == 1 && b[SpaceEnteredPlayer] == 0) || (player == 2 && b[SpaceEnteredOpponent] == 0) || !b.SecondHalf(player) {
+				return 0
+			}
+			return 25 - from
+		}
 		return from
 	case to == SpaceHomeOpponent:
+		if player == 1 {
+			return 0
+		}
 		return 25 - from
 	case from == SpaceHomePlayer || from == SpaceHomeOpponent:
-		if b[SpaceVariant] != VariantBackgammon {
+		if (player == 1 && from == SpaceHomeOpponent) || (player == 2 && from == SpaceHomePlayer) {
+			return 0
+		}
+		switch b[SpaceVariant] {
+		case VariantAceyDeucey:
 			if player == 1 && from == SpaceHomePlayer && b[SpaceEnteredPlayer] == 0 {
 				return 25 - to
 			} else if player == 2 && from == SpaceHomeOpponent && b[SpaceEnteredOpponent] == 0 {
 				return to
 			}
+		case VariantTabula:
+			if (player == 1 && from != SpaceHomePlayer && b[SpaceEnteredPlayer] == 0) || (player == 2 && from != SpaceHomeOpponent && b[SpaceEnteredOpponent] == 0) {
+				return 0
+			}
+			return to
 		}
 		return 0
 	case from == SpaceBarPlayer:
+		if player == 2 {
+			return 0
+		}
+		if b[SpaceVariant] == VariantTabula {
+			return to
+		}
 		return 25 - to
 	case from == SpaceBarOpponent:
+		if player == 1 {
+			return 0
+		}
 		return to
 	default:
 		diff := to - from
@@ -151,12 +192,16 @@ func (b Board) spaceDiff(player int, from int8, to int8) int8 {
 }
 
 // HaveRoll returns whether the player has a sufficient die roll for the specified move.
-func (b Board) HaveRoll(from int8, to int8, player int) bool {
+func (b Board) HaveRoll(from int8, to int8, player int8) bool {
 	barSpace := SpaceBarPlayer
 	if player == 2 {
 		barSpace = SpaceBarOpponent
 	}
 	if b[barSpace] != 0 && from != barSpace {
+		return false
+	}
+
+	if b[SpaceVariant] == VariantTabula && to > 12 && to < 25 && ((player == 1 && b[SpaceEnteredPlayer] == 0) || (player == 2 && b[SpaceEnteredOpponent] == 0)) {
 		return false
 	}
 
@@ -190,8 +235,8 @@ func (b Board) HaveRoll(from int8, to int8, player int) bool {
 	return false
 }
 
-// UseRoll uses a die roll.
-func (b Board) UseRoll(from int8, to int8, player int) Board {
+// UseRoll uses a die roll. UseRoll must be called before making a move.
+func (b Board) UseRoll(from int8, to int8, player int8) Board {
 	delta := b.spaceDiff(player, from, to)
 	if delta == 0 {
 		b.Print()
@@ -250,7 +295,7 @@ func (b Board) UseRoll(from int8, to int8, player int) Board {
 	return b
 }
 
-func (b Board) _available(player int) [][2]int8 {
+func (b Board) _available(player int8) [][2]int8 {
 	homeSpace := SpaceHomePlayer
 	barSpace := SpaceBarPlayer
 	opponentBarSpace := SpaceBarOpponent
@@ -272,12 +317,11 @@ func (b Board) _available(player int) [][2]int8 {
 			}
 		}
 	}
-
 	for from := int8(0); from < 28; from++ {
 		if from == SpaceHomePlayer || from == SpaceHomeOpponent || from == opponentBarSpace || checkers(player, b[from]) == 0 || (onBar && from != barSpace) {
 			continue
 		}
-		if player == 1 {
+		if player == 1 && b[SpaceVariant] != VariantTabula {
 			for to := int8(0); to < from; to++ {
 				if to == SpaceBarPlayer || to == SpaceBarOpponent || to == SpaceHomeOpponent || (to == SpaceHomePlayer && !mayBearOff) {
 					continue
@@ -290,11 +334,17 @@ func (b Board) _available(player int) [][2]int8 {
 			}
 		} else { // TODO clean up
 			start := from + 1
-			if from == SpaceBarOpponent {
-				start = 0
+			if from == SpaceBarPlayer || from == SpaceBarOpponent {
+				start = 1
 			}
-			for to := start; to <= 25; to++ {
-				if to == SpaceBarPlayer || to == SpaceBarOpponent || to == SpaceHomeOpponent || (to == SpaceHomeOpponent && !mayBearOff) {
+			for i := start; i <= 25; i++ {
+				to := i
+				if player == 1 && to == SpaceHomeOpponent {
+					to = SpaceHomePlayer
+				} else if player == 2 && to == SpaceHomePlayer {
+					to = SpaceHomeOpponent
+				}
+				if to == SpaceBarPlayer || to == SpaceBarOpponent || (((player == 1 && to == SpaceHomePlayer) || (player == 2 && to == SpaceHomeOpponent)) && !mayBearOff) {
 					continue
 				}
 				v := b[to]
@@ -310,7 +360,7 @@ func (b Board) _available(player int) [][2]int8 {
 }
 
 // Available returns legal moves available.
-func (b Board) Available(player int) ([][4][2]int8, []Board) {
+func (b Board) Available(player int8) ([][4][2]int8, []Board) {
 	var allMoves [][4][2]int8
 
 	resultMutex := &sync.Mutex{}
@@ -330,7 +380,7 @@ func (b Board) Available(player int) ([][4][2]int8, []Board) {
 	a := b._available(player)
 	maxLen := 1
 	for _, move := range a {
-		newBoard := b.Move(move[0], move[1], player).UseRoll(move[0], move[1], player)
+		newBoard := b.UseRoll(move[0], move[1], player).Move(move[0], move[1], player)
 		newAvailable := newBoard._available(player)
 		if len(newAvailable) == 0 {
 			moves := [4][2]int8{move}
@@ -341,31 +391,35 @@ func (b Board) Available(player int) ([][4][2]int8, []Board) {
 			continue
 		}
 		for _, move2 := range newAvailable {
-			newBoard2 := newBoard.Move(move2[0], move2[1], player).UseRoll(move2[0], move2[1], player)
+			newBoard2 := newBoard.UseRoll(move2[0], move2[1], player).Move(move2[0], move2[1], player)
 			newAvailable2 := newBoard2._available(player)
 			if len(newAvailable2) == 0 {
 				moves := [4][2]int8{move, move2}
 				if !movesFound(moves) {
 					allMoves = append(allMoves, moves)
 					boards = append(boards, newBoard2)
-					maxLen = 2
+					if maxLen <= 2 {
+						maxLen = 2
+					}
 				}
 				continue
 			}
 			for _, move3 := range newAvailable2 {
-				newBoard3 := newBoard2.Move(move3[0], move3[1], player).UseRoll(move3[0], move3[1], player)
+				newBoard3 := newBoard2.UseRoll(move3[0], move3[1], player).Move(move3[0], move3[1], player)
 				newAvailable3 := newBoard3._available(player)
 				if len(newAvailable3) == 0 {
 					moves := [4][2]int8{move, move2, move3}
 					if !movesFound(moves) {
 						allMoves = append(allMoves, moves)
 						boards = append(boards, newBoard3)
-						maxLen = 3
+						if maxLen <= 2 {
+							maxLen = 3
+						}
 					}
 					continue
 				}
 				for _, move4 := range newAvailable3 {
-					newBoard4 := newBoard3.Move(move4[0], move4[1], player).UseRoll(move4[0], move4[1], player)
+					newBoard4 := newBoard3.UseRoll(move4[0], move4[1], player).Move(move4[0], move4[1], player)
 					moves := [4][2]int8{move, move2, move3, move4}
 					if !movesFound(moves) {
 						allMoves = append(allMoves, moves)
@@ -379,6 +433,18 @@ func (b Board) Available(player int) ([][4][2]int8, []Board) {
 	var newMoves [][4][2]int8
 	for i := 0; i < len(allMoves); i++ {
 		l := 0
+		if (allMoves[i][3][0] != 0 || allMoves[i][3][1] != 0) && allMoves[i][2][0] == 0 && allMoves[i][2][1] == 0 {
+			allMoves[i][2][0], allMoves[i][2][1] = allMoves[i][3][0], allMoves[i][3][1]
+			allMoves[i][2][0], allMoves[i][2][1] = 0, 0
+		}
+		if (allMoves[i][2][0] != 0 || allMoves[i][2][1] != 0) && allMoves[i][1][0] == 0 && allMoves[i][1][1] == 0 {
+			allMoves[i][1][0], allMoves[i][1][1] = allMoves[i][2][0], allMoves[i][2][1]
+			allMoves[i][2][0], allMoves[i][2][1] = 0, 0
+		}
+		if (allMoves[i][1][0] != 0 || allMoves[i][1][1] != 0) && allMoves[i][0][0] == 0 && allMoves[i][0][1] == 0 {
+			allMoves[i][0][0], allMoves[i][0][1] = allMoves[i][1][0], allMoves[i][1][1]
+			allMoves[i][1][0], allMoves[i][1][1] = 0, 0
+		}
 		for j := 0; j < 4; j++ {
 			if allMoves[i][j][0] == 0 && allMoves[i][j][1] == 0 {
 				break
@@ -393,7 +459,9 @@ func (b Board) Available(player int) ([][4][2]int8, []Board) {
 }
 
 func (b Board) Past() bool {
-	if b[SpaceBarPlayer] != 0 || b[SpaceBarOpponent] != 0 {
+	if b[SpaceBarPlayer] != 0 || b[SpaceBarOpponent] != 0 || b[SpaceVariant] == VariantTabula {
+		return false
+	} else if b[SpaceVariant] == VariantAceyDeucey && ((b[SpaceEnteredPlayer] == 0 && b[SpaceHomePlayer] != 0) || (b[SpaceEnteredOpponent] == 0 && b[SpaceHomeOpponent] != 0)) {
 		return false
 	}
 	var playerFirst, opponentLast int
@@ -414,7 +482,42 @@ func (b Board) Past() bool {
 	return playerFirst < opponentLast
 }
 
-func (b Board) Pips(player int) int {
+func (b Board) SecondHalf(player int8) bool {
+	if b[SpaceVariant] != VariantTabula {
+		return false
+	}
+
+	switch player {
+	case 1:
+		if b[SpaceBarPlayer] != 0 {
+			return false
+		} else if b[SpaceEnteredPlayer] == 0 && b[SpaceHomePlayer] != 0 {
+			return false
+		}
+	case 2:
+		if b[SpaceBarOpponent] != 0 {
+			return false
+		} else if b[SpaceEnteredOpponent] == 0 && b[SpaceHomeOpponent] != 0 {
+			return false
+		}
+	default:
+		log.Panicf("unknown player: %d", player)
+	}
+
+	for space := 1; space < 13; space++ {
+		if space == 13 {
+			log.Fatal("CHECK SPACE", space)
+		}
+		v := b[space]
+		if (player == 1 && v > 0) || (player == 2 && v < 0) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (b Board) Pips(player int8) int {
 	var pips int
 	if b[SpaceVariant] != VariantBackgammon {
 		if player == 1 && b[SpaceEnteredPlayer] == 0 {
@@ -434,7 +537,7 @@ func (b Board) Pips(player int) int {
 	return pips
 }
 
-func (b Board) Blots(player int) int {
+func (b Board) Blots(player int8) int {
 	o := opponent(player)
 	var pips int
 	for space := int8(1); space < 25; space++ {
@@ -445,7 +548,7 @@ func (b Board) Blots(player int) int {
 	return pips
 }
 
-func (b Board) evaluate(player int, hitScore int, a *Analysis) {
+func (b Board) evaluate(player int8, hitScore int, a *Analysis) {
 	pips := b.Pips(player)
 	score := float64(pips)
 	var blots int
@@ -460,7 +563,7 @@ func (b Board) evaluate(player int, hitScore int, a *Analysis) {
 	a.hitScore = hitScore
 }
 
-func (b Board) Evaluation(player int, hitScore int, moves [4][2]int8) *Analysis {
+func (b Board) Evaluation(player int8, hitScore int, moves [4][2]int8) *Analysis {
 	a := &Analysis{
 		Board:  b,
 		Moves:  moves,
@@ -549,7 +652,7 @@ func (b Board) Analyze(available [][4][2]int8, result *[]*Analysis) {
 		}
 	}
 
-	if b.StartingPosition(1) && b[SpaceRoll1] != b[SpaceRoll2] {
+	if b[SpaceVariant] != VariantTabula && b.StartingPosition(1) {
 		r1, r2 := b[SpaceRoll1], b[SpaceRoll2]
 		if r2 > r1 {
 			r1, r2 = r2, r1
@@ -630,7 +733,7 @@ func (b Board) Analyze(available [][4][2]int8, result *[]*Analysis) {
 	})
 }
 
-func (b Board) StartingPosition(player int) bool {
+func (b Board) StartingPosition(player int8) bool {
 	if player == 1 {
 		return b[6] == 5 && b[8] == 3 && b[13] == 5 && b[24] == 2
 	}
@@ -666,14 +769,14 @@ func (b Board) Print() {
 	log.Printf("%+v", b)
 }
 
-func opponent(player int) int {
+func opponent(player int8) int8 {
 	if player == 1 {
 		return 2
 	}
 	return 1
 }
 
-func spaceValue(player int, space int8) int {
+func spaceValue(player int8, space int8) int {
 	if space == SpaceHomePlayer || space == SpaceHomeOpponent || space == SpaceBarPlayer || space == SpaceBarOpponent {
 		return 25
 	} else if player == 1 {
@@ -683,7 +786,7 @@ func spaceValue(player int, space int8) int {
 	}
 }
 
-func PseudoPips(player int, space int8) int {
+func PseudoPips(player int8, space int8) int {
 	v := 6 + spaceValue(player, space) + int(math.Exp(float64(spaceValue(player, space))*0.2))*2
 	if space == SpaceHomePlayer || space == SpaceHomeOpponent || (player == 1 && (space > 6 || space == SpaceBarPlayer)) || (player == 2 && (space < 19 || space == SpaceBarOpponent)) {
 		v += 24

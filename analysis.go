@@ -72,7 +72,7 @@ type Analysis struct {
 	OppHits  float64
 	OppScore float64
 
-	player   int
+	player   int8
 	hitScore int
 	chance   int
 	wg       *sync.WaitGroup
@@ -90,7 +90,7 @@ func (a *Analysis) _analyze() {
 		if checkers == 1 {
 			hs += PseudoPips(a.player, move[1])
 		}
-		a.Board = a.Board.Move(move[0], move[1], a.player).UseRoll(move[0], move[1], a.player)
+		a.Board = a.Board.UseRoll(move[0], move[1], a.player).Move(move[0], move[1], a.player)
 	}
 	if !a.Past {
 		a.Past = a.Board.Past()

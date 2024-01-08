@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestMove(t *testing.T) {
+func TestMoveBackgammon(t *testing.T) {
 	b := NewBoard(VariantBackgammon)
 	b[SpaceRoll1] = 1
 	b[SpaceRoll2] = 2
@@ -36,27 +36,240 @@ func TestMove(t *testing.T) {
 	}
 }
 
-func TestPast(t *testing.T) {
+func TestMoveTabula(t *testing.T) {
+	{
+		b := NewBoard(VariantTabula)
+		b[SpaceRoll1] = 1
+		b[SpaceRoll2] = 2
+
+		bc := b.Move(SpaceHomePlayer, 23, 1)
+		got, expected := bc[SpaceHomePlayer], int8(14)
+		if got != expected {
+			t.Errorf("unexpected space %d value: expected %d: got %d", SpaceHomePlayer, expected, got)
+		}
+		got, expected = bc[23], int8(1)
+		if got != expected {
+			t.Errorf("unexpected space %d value: expected %d: got %d", 23, expected, got)
+		}
+		bc = bc.Move(SpaceHomePlayer, 22, 1)
+		got, expected = bc[SpaceHomePlayer], int8(13)
+		if got != expected {
+			t.Errorf("unexpected space %d value: expected %d: got %d", SpaceHomePlayer, expected, got)
+		}
+		got, expected = bc[22], int8(1)
+		if got != expected {
+			t.Errorf("unexpected space %d value: expected %d: got %d", 22, expected, got)
+		}
+	}
+
+	{
+		b := Board{0, 1, 2, 3, 4, 4, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -15, 0, 0, 0, 0, 1, 0, 2}
+		b[SpaceRoll1] = 1
+		b[SpaceRoll2] = 2
+
+		bc := b.UseRoll(1, 2, 1).Move(1, 2, 1)
+		got, expected := bc[1], int8(0)
+		if got != expected {
+			t.Errorf("unexpected space %d value: expected %d: got %d", 1, expected, got)
+		}
+		got, expected = bc[2], int8(3)
+		if got != expected {
+			t.Errorf("unexpected space %d value: expected %d: got %d", 2, expected, got)
+		}
+
+		if !bc.HaveRoll(5, 7, 1) {
+			t.Errorf("unexpected have roll value: expected %v: got %v", false, true)
+		}
+
+		if bc.HaveRoll(12, 13, 1) {
+			t.Errorf("unexpected have roll value: expected %v: got %v", false, true)
+		}
+
+		if !bc.HaveRoll(12, 14, 1) {
+			t.Errorf("unexpected have roll value: expected %v: got %v", true, true)
+		}
+	}
+
+	{
+		b := Board{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -15, 0, 0, 0, 0, 0, 0, 2}
+		b[SpaceRoll1] = 1
+		b[SpaceRoll2] = 2
+
+		if b.HaveRoll(12, 13, 1) {
+			t.Errorf("unexpected have roll value: expected %v: got %v", false, true)
+		}
+
+		bc := b.UseRoll(0, 1, 1).Move(0, 1, 1)
+		got, expected := bc[0], int8(0)
+		if got != expected {
+			t.Errorf("unexpected space %d value: expected %d: got %d", 0, expected, got)
+		}
+		got, expected = bc[1], int8(1)
+		if got != expected {
+			t.Errorf("unexpected space %d value: expected %d: got %d", 1, expected, got)
+		}
+
+		if bc.HaveRoll(12, 13, 1) {
+			t.Errorf("unexpected have roll value: expected %v: got %v", false, false)
+		}
+
+		if !bc.HaveRoll(12, 14, 1) {
+			t.Errorf("unexpected have roll value: expected %v: got %v", true, false)
+		}
+	}
+
+	{
+		b := Board{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -15, 0, 0, 0, 0, 0, 0, 1, 0, 2}
+		b[SpaceRoll1] = 1
+		b[SpaceRoll2] = 2
+
+		if !b.HaveRoll(12, 14, 1) {
+			t.Errorf("unexpected have roll value: expected %v: got %v", true, false)
+		}
+
+		if b.MayBearOff(1) {
+			t.Errorf("unexpected bear off value: expected %v: got %v", false, true)
+		}
+
+		b = b.Move(12, 14, 1).UseRoll(12, 14, 1)
+		got, expected := b[12], int8(0)
+		if got != expected {
+			t.Errorf("unexpected space %d value: expected %d: got %d", 12, expected, got)
+		}
+		got, expected = b[14], int8(1)
+		if got != expected {
+			t.Errorf("unexpected space %d value: expected %d: got %d", 14, expected, got)
+		}
+
+		if !b.MayBearOff(1) {
+			t.Errorf("unexpected bear off value: expected %v: got %v", true, false)
+		}
+
+		if !b.HaveRoll(14, 15, 1) {
+			t.Errorf("unexpected have roll value: expected %v: got %v", true, false)
+		}
+
+		if b.HaveRoll(14, 16, 1) {
+			t.Errorf("unexpected have roll value: expected %v: got %v", false, true)
+		}
+	}
+
+	{
+		b := Board{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, -15, 0, 0, 0, 0, 0, 0, 1, 0, 2}
+		b[SpaceRoll1] = 1
+		b[SpaceRoll2] = 2
+
+		if !b.HaveRoll(12, 14, 1) {
+			t.Errorf("unexpected have roll value: expected %v: got %v", true, false)
+		}
+
+		if b.MayBearOff(1) {
+			t.Errorf("unexpected bear off value: expected %v: got %v", false, true)
+		}
+
+		if b.HaveRoll(24, 0, 1) {
+			t.Errorf("unexpected have roll value: expected %v: got %v", false, true)
+		}
+
+		b = b.UseRoll(12, 14, 1).Move(12, 14, 1)
+		got, expected := b[12], int8(0)
+		if got != expected {
+			t.Errorf("unexpected space %d value: expected %d: got %d", 12, expected, got)
+		}
+		got, expected = b[14], int8(1)
+		if got != expected {
+			t.Errorf("unexpected space %d value: expected %d: got %d", 14, expected, got)
+		}
+
+		if !b.MayBearOff(1) {
+			t.Errorf("unexpected bear off value: expected %v: got %v", true, false)
+		}
+
+		if !b.HaveRoll(24, 0, 1) {
+			t.Errorf("unexpected have roll value: expected %v: got %v", true, false)
+		}
+	}
+}
+
+func TestPastBackgammon(t *testing.T) {
 	b := NewBoard(VariantBackgammon)
 	got, expected := b.Past(), false
 	if got != expected {
 		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
 	}
 
-	b = Board{0, 1, 3, -1, 0, -1, 0, -2, 0, 0, -1, 0, -3, 3, 0, 0, 0, -2, 0, -5, 4, 0, 2, 2, 0, 0, 0, 0, 5, 5, 5, 5}
+	b = Board{0, 1, 3, -1, 0, -1, 0, -2, 0, 0, -1, 0, -3, 3, 0, 0, 0, -2, 0, -5, 4, 0, 2, 2, 0, 0, 0, 0, 5, 5, 5, 5, 1, 1, 0}
 	got, expected = b.Past(), false
 	if got != expected {
 		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
 	}
 
-	b = Board{0, -1, 1, -2, -1, 2, 4, 0, 0, 0, 0, 0, -1, 2, -1, 0, 0, -1, 3, -3, 0, 3, -1, -3, -1, 0, 0, 0, 4, 3, 0, 0}
+	b = Board{0, -1, 1, -2, -1, 2, 4, 0, 0, 0, 0, 0, -1, 2, -1, 0, 0, -1, 3, -3, 0, 3, -1, -3, -1, 0, 0, 0, 4, 3, 0, 0, 1, 1, 0}
 	got, expected = b.Past(), false
 	if got != expected {
 		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
 	}
 
-	b = Board{7, 2, 2, 4, 0, -2, 0, 0, -1, 0, -1, 0, 0, 0, 0, 0, -1, -1, 0, -4, 0, -2, -1, -1, -1, 0, 0, 0, 6, 2, 0, 0}
+	b = Board{7, 2, 2, 4, 0, -2, 0, 0, -1, 0, -1, 0, 0, 0, 0, 0, -1, -1, 0, -4, 0, -2, -1, -1, -1, 0, 0, 0, 6, 2, 0, 0, 1, 1, 0}
 	got, expected = b.Past(), true
+	if got != expected {
+		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
+	}
+}
+
+func TestPastAcey(t *testing.T) {
+	b := NewBoard(VariantAceyDeucey)
+	got, expected := b.Past(), false
+	if got != expected {
+		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
+	}
+
+	b = Board{0, 1, 3, -1, 0, -1, 0, -2, 0, 0, -1, 0, -3, 3, 0, 0, 0, -2, 0, -5, 4, 0, 2, 2, 0, 0, 0, 0, 5, 5, 5, 5, 1, 1, 1}
+	got, expected = b.Past(), false
+	if got != expected {
+		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
+	}
+
+	b = Board{0, -1, 1, -2, -1, 2, 4, 0, 0, 0, 0, 0, -1, 2, -1, 0, 0, -1, 3, -3, 0, 3, -1, -3, -1, 0, 0, 0, 4, 3, 0, 0, 1, 1, 1}
+	got, expected = b.Past(), false
+	if got != expected {
+		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
+	}
+
+	b = Board{7, 2, 2, 4, 0, -2, 0, 0, -1, 0, -1, 0, 0, 0, 0, 0, -1, -1, 0, -4, 0, -2, -1, -1, -1, 0, 0, 0, 6, 2, 0, 0, 0, 1, 1}
+	got, expected = b.Past(), false
+	if got != expected {
+		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
+	}
+
+	b = Board{7, 2, 2, 4, 0, -2, 0, 0, -1, 0, -1, 0, 0, 0, 0, 0, -1, -1, 0, -4, 0, -2, -1, -1, -1, 0, 0, 0, 6, 2, 0, 0, 1, 1, 1}
+	got, expected = b.Past(), true
+	if got != expected {
+		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
+	}
+}
+
+func TestPastTabula(t *testing.T) {
+	b := NewBoard(VariantTabula)
+	got, expected := b.Past(), false
+	if got != expected {
+		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
+	}
+
+	b = Board{0, 1, 3, -1, 0, -1, 0, -2, 0, 0, -1, 0, -3, 3, 0, 0, 0, -2, 0, -5, 4, 0, 2, 2, 0, 0, 0, 0, 5, 5, 5, 5, 1, 1, 2}
+	got, expected = b.Past(), false
+	if got != expected {
+		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
+	}
+
+	b = Board{0, -1, 1, -2, -1, 2, 4, 0, 0, 0, 0, 0, -1, 2, -1, 0, 0, -1, 3, -3, 0, 3, -1, -3, -1, 0, 0, 0, 4, 3, 0, 0, 1, 1, 2}
+	got, expected = b.Past(), false
+	if got != expected {
+		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
+	}
+
+	b = Board{7, 2, 2, 4, 0, -2, 0, 0, -1, 0, -1, 0, 0, 0, 0, 0, -1, -1, 0, -4, 0, -2, -1, -1, -1, 0, 0, 0, 6, 2, 0, 0, 1, 1, 2}
+	got, expected = b.Past(), false
 	if got != expected {
 		t.Errorf("unexpected past value: expected %v: got %v", expected, got)
 	}

@@ -57,22 +57,23 @@ func (s *BEIServer) handleConnection(conn net.Conn) {
 
 			available, _ := b.Available(1)
 			b.Analyze(available, &analysis)
-			if len(analysis) == 0 {
-				log.Printf("error: failed to read from client: zero moves returned for analysis")
-				conn.Close()
-				return
-			}
-
-			move := &bei.Move{}
-			for _, m := range analysis[0].Moves {
-				if m[0] == 0 && m[1] == 0 {
-					break
+			var move *bei.Move
+			if len(analysis) > 0 {
+				move = &bei.Move{}
+				for _, m := range analysis[0].Moves {
+					if m[0] == 0 && m[1] == 0 {
+						break
+					}
+					move.Play = append(move.Play, &bei.Play{From: int(m[0]), To: int(m[1])})
 				}
-				move.Play = append(move.Play, &bei.Play{From: int(m[0]), To: int(m[1])})
 			}
-			buf, err := bei.EncodeEvent(&bei.EventOkMove{
-				Moves: []*bei.Move{move},
-			})
+			result := &bei.EventOkMove{
+				Moves: []*bei.Move{},
+			}
+			if move != nil {
+				result.Moves = append(result.Moves, move)
+			}
+			buf, err := bei.EncodeEvent(result)
 			if err != nil {
 				log.Fatalf("error: failed to encode event: %s", err)
 			}
@@ -160,16 +161,18 @@ func parseState(buf []byte) (Board, error) {
 	}
 	b[SpaceRoll1] = int8(state.Roll1)
 	b[SpaceRoll2] = int8(state.Roll2)
-	if state.Roll1 == state.Roll2 {
+	if int8(state.Variant) != VariantTabula && state.Roll1 == state.Roll2 {
 		b[SpaceRoll3], b[SpaceRoll4] = int8(state.Roll1), int8(state.Roll2)
+	} else {
+		b[SpaceRoll3] = int8(state.Roll3)
 	}
 	if int8(state.Variant) != VariantBackgammon {
 		b[SpaceVariant] = int8(state.Variant)
-		if !state.Entered1 {
-			b[SpaceEnteredPlayer] = 0
+		if state.Entered1 {
+			b[SpaceEnteredPlayer] = 1
 		}
-		if !state.Entered2 {
-			b[SpaceEnteredOpponent] = 0
+		if state.Entered2 {
+			b[SpaceEnteredOpponent] = 1
 		}
 	} else {
 		b[SpaceEnteredPlayer] = 1

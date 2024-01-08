@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
 
 	"code.rocket9labs.com/tslocum/tabula"
 )
@@ -35,6 +36,32 @@ func main() {
 	//b := tabula.Board{0, 0, -2, -2, -2, 4, 0, -1, 0, 0, -2, 4, 0, -2, -1, 0, -2, 4, 0, 2, 0, 0, 0, 0, -1, 0, 1, 0, 4, 1, 0, 0, 1, 1, 1}
 
 	analysis := make([]*tabula.Analysis, 0, tabula.AnalysisBufferSize)
+
+	// should be 3/1 then 5/0 in acey, then fix backgammon movement
+	// test cases for issues first then fix until tests pass
+	b := tabula.Board{0, 5, 2, 5, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, -2, -2, -2, -3, -3, -2, 0, 1, 0, 0, 0, 5, 2, 0, 0, 1, 1, 1}
+	log.Println(b[24])
+	b.Print()
+	available, _ := b.Available(1)
+	for i := range available {
+		log.Println(available[i])
+	}
+	b.Analyze(available, &analysis)
+	for i := range analysis {
+		log.Println(analysis[i])
+	}
+	log.Println(b)
+	b = b.UseRoll(3, 1, 1).Move(3, 1, 1)
+	log.Println("NEW AVAILABLE")
+	log.Println(b)
+	available, _ = b.Available(1)
+	for i := range available {
+		log.Println(available[i])
+	}
+	log.Println(b)
+	os.Exit(0)
+
+	// Print opening moves.
 	for r1 := 1; r1 <= 6; r1++ {
 		for r2 := 1; r2 <= 6; r2++ {
 			b := tabula.NewBoard(tabula.VariantBackgammon)
