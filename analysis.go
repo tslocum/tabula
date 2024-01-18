@@ -11,9 +11,9 @@ var Verbose bool
 var QueueBufferSize = 4096000
 
 var (
-	WeightBlot     = 1.025
+	WeightBlot     = 0.9
 	WeightHit      = -1.0
-	WeightOppScore = -3.0
+	WeightOppScore = -0.9
 )
 
 // rollProbabilities is a table of the probability of each roll combination.

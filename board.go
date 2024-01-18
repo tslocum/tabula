@@ -458,14 +458,14 @@ func (b Board) Available(player int8) ([][4][2]int8, []Board) {
 	return newMoves, boards
 }
 
-func (b Board) Past() bool {
+func (b Board) FirstLast(player int8) (playerFirst int8, opponentLast int8) {
+	playerFirst, opponentLast = -1, -1
 	if b[SpaceBarPlayer] != 0 || b[SpaceBarOpponent] != 0 || b[SpaceVariant] == VariantTabula {
-		return false
+		return playerFirst, opponentLast
 	} else if b[SpaceVariant] == VariantAceyDeucey && ((b[SpaceEnteredPlayer] == 0 && b[SpaceHomePlayer] != 0) || (b[SpaceEnteredOpponent] == 0 && b[SpaceHomeOpponent] != 0)) {
-		return false
+		return playerFirst, opponentLast
 	}
-	var playerFirst, opponentLast int
-	for space := 1; space < 25; space++ {
+	for space := int8(1); space < 25; space++ {
 		v := b[space]
 		if v == 0 {
 			continue
@@ -474,10 +474,21 @@ func (b Board) Past() bool {
 				playerFirst = space
 			}
 		} else {
-			if opponentLast == 0 {
+			if opponentLast == -1 {
 				opponentLast = space
 			}
 		}
+	}
+	if player == 2 {
+		return opponentLast, playerFirst
+	}
+	return playerFirst, opponentLast
+}
+
+func (b Board) Past() bool {
+	playerFirst, opponentLast := b.FirstLast(1)
+	if playerFirst == -1 || opponentLast == -1 {
+		return false
 	}
 	return playerFirst < opponentLast
 }
@@ -505,9 +516,6 @@ func (b Board) SecondHalf(player int8) bool {
 	}
 
 	for space := 1; space < 13; space++ {
-		if space == 13 {
-			log.Fatal("CHECK SPACE", space)
-		}
 		v := b[space]
 		if (player == 1 && v > 0) || (player == 2 && v < 0) {
 			return false
@@ -538,10 +546,16 @@ func (b Board) Pips(player int8) int {
 }
 
 func (b Board) Blots(player int8) int {
+	_, last := b.FirstLast(player)
 	o := opponent(player)
 	var pips int
+	var skipBlots int
 	for space := int8(1); space < 25; space++ {
 		if checkers(player, b[space]) == 1 {
+			if last != -1 && ((player == 1 && space < last) || (player == 2 && space > last)) && skipBlots == 0 {
+				skipBlots++
+				continue
+			}
 			pips += PseudoPips(o, space, b[SpaceVariant])
 		}
 	}
@@ -580,6 +594,7 @@ func (b Board) Analyze(available [][4][2]int8, result *[]*Analysis) {
 		*result = (*result)[:0]
 		return
 	}
+	const priorityScore = -1000000
 
 	var reuse []*[]*Analysis
 	for _, r := range *result {
@@ -650,6 +665,9 @@ func (b Board) Analyze(available [][4][2]int8, result *[]*Analysis) {
 		} else {
 			a.Score = a.PlayerScore
 		}
+		if a.player == 1 && !past && a.Past {
+			a.Score += priorityScore
+		}
 	}
 
 	if b[SpaceVariant] != VariantTabula && b.StartingPosition(1) {
@@ -719,7 +737,6 @@ func (b Board) Analyze(available [][4][2]int8, result *[]*Analysis) {
 				}
 			}
 		}
-		const priorityScore = -1000000
 		for _, a := range *result {
 			if movesEqual(a.Moves, opening) {
 				a.Score = priorityScore

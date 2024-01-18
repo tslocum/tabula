@@ -40,8 +40,9 @@ func main() {
 
 	analysis := make([]*tabula.Analysis, 0, tabula.AnalysisBufferSize)
 
-	b := tabula.Board{0, 5, 2, 5, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, -2, -2, -2, -3, -3, -2, 0, 1, 0, 0, 0, 5, 2, 0, 0, 1, 1, 1}
-	log.Println(b[24])
+	b := tabula.Board{0, 0, 0, 1, 0, 0, 5, -1, 1, 0, 0, 0, -5, 4, 0, 0, 0, -4, 0, -5, 0, 2, 0, 0, 1, 0, 1, 0}
+	b[tabula.SpaceRoll1] = 1
+	b[tabula.SpaceRoll3] = 1
 	b.Print()
 	available, _ := b.Available(1)
 	for i := range available {
