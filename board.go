@@ -549,14 +549,21 @@ func (b Board) Blots(player int8) int {
 	_, last := b.FirstLast(player)
 	o := opponent(player)
 	var pips int
-	var skipBlots int
+	var pastBlots int
+	var div int
 	for space := int8(1); space < 25; space++ {
 		if checkers(player, b[space]) == 1 {
-			if last != -1 && ((player == 1 && space < last) || (player == 2 && space > last)) && skipBlots == 0 {
-				skipBlots++
-				continue
+			if last != -1 && ((player == 1 && space < last) || (player == 2 && space > last)) && pastBlots == 0 {
+				pastBlots++
+				div = 4
+			} else {
+				div = 1
 			}
-			pips += PseudoPips(o, space, b[SpaceVariant])
+			v := PseudoPips(o, space, b[SpaceVariant]) / div
+			if v < 1 {
+				v = 1
+			}
+			pips += v
 		}
 	}
 	return pips
