@@ -49,6 +49,55 @@ func NewBoard(variant int8) Board {
 	return Board{0, -2, 0, 0, 0, 0, 5, 0, 3, 0, 0, 0, -5, 5, 0, 0, 0, -3, 0, -5, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0}
 }
 
+func (b Board) String() string {
+	var board []byte
+	for i, v := range b {
+		if i != 0 {
+			board = append(board, ',')
+		}
+		board = append(board, []byte(fmt.Sprintf("%d", v))...)
+	}
+	variant := "Backgammon"
+	switch b[SpaceVariant] {
+	case VariantAceyDeucey:
+		variant = "Acey-deucey"
+	case VariantTabula:
+		variant = "Tabula"
+	}
+	entered1, entered2 := "Y", "Y"
+	if b[SpaceEnteredPlayer] == 0 {
+		entered1 = "N"
+	}
+	if b[SpaceEnteredOpponent] == 0 {
+		entered2 = "N"
+	}
+	off1 := b[SpaceHomePlayer]
+	off2 := b[SpaceHomeOpponent] * -1
+	var rolls []byte
+	if b[SpaceRoll1] != 0 {
+		rolls = append(rolls, []byte(fmt.Sprintf("%d", b[SpaceRoll1]))...)
+	}
+	if b[SpaceRoll2] != 0 {
+		if len(rolls) != 0 {
+			rolls = append(rolls, ' ')
+		}
+		rolls = append(rolls, []byte(fmt.Sprintf("%d", b[SpaceRoll2]))...)
+	}
+	if b[SpaceRoll3] != 0 {
+		if len(rolls) != 0 {
+			rolls = append(rolls, ' ')
+		}
+		rolls = append(rolls, []byte(fmt.Sprintf("%d", b[SpaceRoll3]))...)
+	}
+	if b[SpaceRoll4] != 0 {
+		if len(rolls) != 0 {
+			rolls = append(rolls, ' ')
+		}
+		rolls = append(rolls, []byte(fmt.Sprintf("%d", b[SpaceRoll4]))...)
+	}
+	return fmt.Sprintf("Board: %s\nVariant: %s\nEntered: %s / %s\nOff: %d / %d\nRolls: %s", board, variant, entered1, entered2, off1, off2, rolls)
+}
+
 func (b Board) SetValue(space int, value int8) Board {
 	b[space] = value
 	return b
@@ -453,6 +502,30 @@ func (b Board) Available(player int8) ([][4][2]int8, []Board) {
 		}
 		if l >= maxLen {
 			newMoves = append(newMoves, allMoves[i])
+		}
+	}
+	if maxLen == 1 && len(newMoves) > 1 {
+		moved := b[SpaceRoll1] == 0
+		if !moved {
+			moved = b[SpaceRoll2] == 0
+		}
+		if !moved && (b[SpaceVariant] == VariantTabula || b[SpaceRoll1] == b[SpaceRoll2]) {
+			moved = b[SpaceRoll3] == 0
+		}
+		if !moved && b[SpaceVariant] != VariantTabula && b[SpaceRoll1] == b[SpaceRoll2] {
+			moved = b[SpaceRoll4] == 0
+		}
+		if !moved {
+			var highestRoll int8
+			var highestIndex int
+			for i, move := range newMoves {
+				roll := b.spaceDiff(player, move[0][0], move[0][1])
+				if roll > highestRoll {
+					highestRoll = roll
+					highestIndex = i
+				}
+			}
+			newMoves = [][4][2]int8{newMoves[highestIndex]}
 		}
 	}
 	return newMoves, boards

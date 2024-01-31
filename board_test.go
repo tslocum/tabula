@@ -5,6 +5,33 @@ import (
 	"testing"
 )
 
+func TestAvailableHighRoll(t *testing.T) {
+	b := Board{0, 0, 0, 0, -2, -2, -2, -2, -2, -1, -2, 0, -2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 4, 0, 0, 1, 1, 0}
+	available, _ := b.Available(1)
+
+	type testCase struct {
+		moves [4][2]int8
+		found int
+	}
+	var testCases = []*testCase{
+		{
+			moves: [4][2]int8{{13, 9}},
+		},
+	}
+	for i, testCase := range testCases {
+		for _, moves := range available {
+			if movesEqual(moves, testCase.moves) {
+				testCase.found++
+				continue
+			}
+			t.Errorf("unexpected available moves for test case %d: %+v", i, moves)
+		}
+		if testCase.found != 1 {
+			t.Errorf("unexpected number of found moves for test case %d: expected 1 move, got %d", i, testCase.found)
+		}
+	}
+}
+
 func TestMoveBackgammon(t *testing.T) {
 	b := NewBoard(VariantBackgammon)
 	b[SpaceRoll1] = 1
