@@ -517,15 +517,21 @@ func (b Board) Available(player int8) ([][4][2]int8, []Board) {
 		}
 		if !moved {
 			var highestRoll int8
-			var highestIndex int
-			for i, move := range newMoves {
+			for _, move := range newMoves {
 				roll := b.spaceDiff(player, move[0][0], move[0][1])
 				if roll > highestRoll {
 					highestRoll = roll
-					highestIndex = i
 				}
 			}
-			newMoves = [][4][2]int8{newMoves[highestIndex]}
+			var highRollMoves [][4][2]int8
+			for _, move := range newMoves {
+				roll := b.spaceDiff(player, move[0][0], move[0][1])
+				if roll != highestRoll {
+					continue
+				}
+				highRollMoves = append(highRollMoves, move)
+			}
+			newMoves = highRollMoves
 		}
 	}
 	return newMoves, boards
