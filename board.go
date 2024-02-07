@@ -651,10 +651,27 @@ func (b Board) Blots(player int8) int {
 func (b Board) evaluate(player int8, hitScore int, a *Analysis) {
 	pips := b.Pips(player)
 	score := float64(pips)
+	blotWeight := WeightBlot
+	if player == 1 {
+		var blocks int8
+		for space := 19; space <= 24; space++ {
+			if checkers(2, b[space]) > 1 {
+				blocks++
+			}
+		}
+		switch blocks {
+		case 6:
+			blotWeight *= 1.5
+		case 5:
+			blotWeight *= 1.25
+		case 4:
+			blotWeight *= 1.1
+		}
+	}
 	var blots int
 	if !a.Past {
 		blots = b.Blots(player)
-		score += float64(blots)*WeightBlot + float64(hitScore)*WeightHit
+		score += float64(blots)*blotWeight + float64(hitScore)*WeightHit
 	}
 	a.Pips = pips
 	a.Blots = blots
