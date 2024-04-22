@@ -142,6 +142,21 @@ func (s *BEIServer) Listen(address string) {
 	}
 }
 
+func (s *BEIServer) ListenLocal() chan net.Conn {
+	conns := make(chan net.Conn)
+	go s.handleLocal(conns)
+	return conns
+}
+
+func (s *BEIServer) handleLocal(conns chan net.Conn) {
+	for {
+		local, remote := net.Pipe()
+
+		conns <- local
+		go s.handleConnection(remote)
+	}
+}
+
 func parseState(buf []byte) (Board, error) {
 	var stateInts []int
 	for _, v := range bytes.Split(buf, []byte(",")) {
