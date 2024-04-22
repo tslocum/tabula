@@ -56,7 +56,7 @@ func (s *BEIServer) handleConnection(conn net.Conn) {
 			}
 
 			available, _ := b.Available(1)
-			b.Analyze(available, &analysis)
+			b.Analyze(available, &analysis, false)
 			var move *bei.Move
 			if len(analysis) > 0 {
 				move = &bei.Move{}

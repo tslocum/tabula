@@ -340,7 +340,7 @@ func TestHitScore(t *testing.T) {
 	b := Board{0, 0, -2, -2, -2, 4, 0, -1, 0, 0, -2, 4, 0, -2, -1, 0, -2, 4, 0, 2, 0, 0, 0, 0, -1, 0, 1, 0, 4, 1, 0, 0, 1, 1, 1}
 	available, _ := b.Available(1)
 	analysis := make([]*Analysis, 0, AnalysisBufferSize)
-	b.Analyze(available, &analysis)
+	b.Analyze(available, &analysis, false)
 
 	var reached bool
 	minHitScore := 200
@@ -363,7 +363,7 @@ func TestAnalyze(t *testing.T) {
 
 	available, _ := b.Available(1)
 	analysis := make([]*Analysis, 0, AnalysisBufferSize)
-	b.Analyze(available, &analysis)
+	b.Analyze(available, &analysis, false)
 	var blots int
 	for _, r := range analysis {
 		blots += r.Blots
@@ -397,7 +397,7 @@ func TestAnalyze(t *testing.T) {
 			board[SpaceRoll4] = c.roll4
 			available, _ := board.Available(1)
 
-			board.Analyze(available, &analysis)
+			board.Analyze(available, &analysis, false)
 		})
 	}
 }
@@ -467,7 +467,7 @@ func BenchmarkAnalyze(b *testing.B) {
 
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				board.Analyze(available, &analysis)
+				board.Analyze(available, &analysis, false)
 			}
 
 			_ = analysis

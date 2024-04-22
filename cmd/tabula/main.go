@@ -48,7 +48,7 @@ func main() {
 	for i := range available {
 		log.Println(available[i])
 	}
-	b.Analyze(available, &analysis)
+	b.Analyze(available, &analysis, false)
 	for i := range analysis {
 		log.Println(analysis[i])
 	}
@@ -74,7 +74,7 @@ func main() {
 				b[tabula.SpaceRoll4] = int8(r2)
 			}
 			available, _ := b.Available(1)
-			b.Analyze(available, &analysis)
+			b.Analyze(available, &analysis, false)
 			log.Println("ROLL", r1, r2, analysis[0].Moves)
 		}
 	}

@@ -345,6 +345,19 @@ func (b Board) UseRoll(from int8, to int8, player int8) Board {
 }
 
 func (b Board) _available(player int8) [][2]int8 {
+	var bearOff int
+	mayBearOff := func() bool {
+		if bearOff != 0 {
+			return bearOff == 1
+		}
+		if b.MayBearOff(player) {
+			bearOff = 1
+			return true
+		}
+		bearOff = 2
+		return false
+	}
+
 	homeSpace := SpaceHomePlayer
 	barSpace := SpaceBarPlayer
 	opponentBarSpace := SpaceBarOpponent
@@ -353,7 +366,6 @@ func (b Board) _available(player int8) [][2]int8 {
 		barSpace = SpaceBarOpponent
 		opponentBarSpace = SpaceBarPlayer
 	}
-	mayBearOff := b.MayBearOff(player)
 	onBar := b[barSpace] != 0
 
 	var moves [][2]int8
@@ -372,7 +384,7 @@ func (b Board) _available(player int8) [][2]int8 {
 		}
 		if player == 1 && b[SpaceVariant] != VariantTabula {
 			for to := int8(0); to < from; to++ {
-				if to == SpaceBarPlayer || to == SpaceBarOpponent || to == SpaceHomeOpponent || (to == SpaceHomePlayer && !mayBearOff) {
+				if to == SpaceBarPlayer || to == SpaceBarOpponent || to == SpaceHomeOpponent || (to == SpaceHomePlayer && !mayBearOff()) {
 					continue
 				}
 				v := b[to]
@@ -393,7 +405,7 @@ func (b Board) _available(player int8) [][2]int8 {
 				} else if player == 2 && to == SpaceHomePlayer {
 					to = SpaceHomeOpponent
 				}
-				if to == SpaceBarPlayer || to == SpaceBarOpponent || (((player == 1 && to == SpaceHomePlayer) || (player == 2 && to == SpaceHomeOpponent)) && !mayBearOff) {
+				if to == SpaceBarPlayer || to == SpaceBarOpponent || (((player == 1 && to == SpaceHomePlayer) || (player == 2 && to == SpaceHomeOpponent)) && !mayBearOff()) {
 					continue
 				}
 				v := b[to]
@@ -412,16 +424,12 @@ func (b Board) _available(player int8) [][2]int8 {
 func (b Board) Available(player int8) ([][4][2]int8, []Board) {
 	var allMoves [][4][2]int8
 
-	resultMutex := &sync.Mutex{}
 	movesFound := func(moves [4][2]int8) bool {
-		resultMutex.Lock()
 		for i := range allMoves {
 			if movesEqual(allMoves[i], moves) {
-				resultMutex.Unlock()
 				return true
 			}
 		}
-		resultMutex.Unlock()
 		return false
 	}
 
@@ -692,7 +700,7 @@ func (b Board) Evaluation(player int8, hitScore int, moves [4][2]int8) *Analysis
 	return a
 }
 
-func (b Board) Analyze(available [][4][2]int8, result *[]*Analysis) {
+func (b Board) Analyze(available [][4][2]int8, result *[]*Analysis, skipOpponent bool) {
 	if len(available) == 0 {
 		*result = (*result)[:0]
 		return
@@ -729,6 +737,7 @@ func (b Board) Analyze(available [][4][2]int8, result *[]*Analysis) {
 			Past:        past,
 			player:      1,
 			chance:      1,
+			skipOpp:     skipOpponent,
 			result:      r,
 			resultMutex: &sync.Mutex{},
 			wg:          w,
@@ -875,7 +884,7 @@ func (b Board) ChooseDoubles(result *[]*Analysis) int {
 		bc[SpaceRoll1], bc[SpaceRoll2], bc[SpaceRoll3], bc[SpaceRoll4] = doubles, doubles, doubles, doubles
 
 		available, _ = bc.Available(1)
-		bc.Analyze(available, result)
+		bc.Analyze(available, result, true)
 		if len(*result) > 0 && (*result)[0].Score < bestScore {
 			bestDoubles = i + 1
 			bestScore = (*result)[0].Score
