@@ -438,6 +438,9 @@ func (b Board) Available(player int8) ([][4][2]int8, []Board) {
 	mayBearOff := b.MayBearOff(player)
 	maxLen := 1
 	for _, move := range a {
+		if (move[1] == SpaceHomePlayer || move[1] == SpaceHomeOpponent) && !mayBearOff {
+			continue
+		}
 		newBoard := b.UseRoll(move[0], move[1], player).Move(move[0], move[1], player)
 		newAvailable := newBoard._available(player)
 		if len(newAvailable) == 0 {
@@ -448,8 +451,9 @@ func (b Board) Available(player int8) ([][4][2]int8, []Board) {
 			}
 			continue
 		}
+		newBearOff := mayBearOff || newBoard.MayBearOff(player)
 		for _, move2 := range newAvailable {
-			if (move2[1] == SpaceHomePlayer || move2[1] == SpaceHomeOpponent) && !mayBearOff {
+			if (move2[1] == SpaceHomePlayer || move2[1] == SpaceHomeOpponent) && !newBearOff {
 				continue
 			}
 			newBoard2 := newBoard.UseRoll(move2[0], move2[1], player).Move(move2[0], move2[1], player)
@@ -465,8 +469,9 @@ func (b Board) Available(player int8) ([][4][2]int8, []Board) {
 				}
 				continue
 			}
+			newBearOff2 := newBearOff || newBoard2.MayBearOff(player)
 			for _, move3 := range newAvailable2 {
-				if (move3[1] == SpaceHomePlayer || move3[1] == SpaceHomeOpponent) && !mayBearOff {
+				if (move3[1] == SpaceHomePlayer || move3[1] == SpaceHomeOpponent) && !newBearOff2 {
 					continue
 				}
 				newBoard3 := newBoard2.UseRoll(move3[0], move3[1], player).Move(move3[0], move3[1], player)
@@ -482,8 +487,9 @@ func (b Board) Available(player int8) ([][4][2]int8, []Board) {
 					}
 					continue
 				}
+				newBearOff3 := newBearOff2 || newBoard3.MayBearOff(player)
 				for _, move4 := range newAvailable3 {
-					if (move4[1] == SpaceHomePlayer || move4[1] == SpaceHomeOpponent) && !mayBearOff {
+					if (move4[1] == SpaceHomePlayer || move4[1] == SpaceHomeOpponent) && !newBearOff3 {
 						continue
 					}
 					newBoard4 := newBoard3.UseRoll(move4[0], move4[1], player).Move(move4[0], move4[1], player)
