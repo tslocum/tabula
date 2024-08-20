@@ -63,6 +63,42 @@ func TestMoveBackgammon(t *testing.T) {
 	}
 }
 
+func TestBearOffBackgammon(t *testing.T) {
+	b := Board{0, 0, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, -3, 0, 0, -3, -6, -2, 0, 0, 0, 3, 3, 0, 0, 1, 1, 0}
+	available, _ := b.Available(1)
+	got, expected := len(available), 1
+	if got != expected {
+		t.Errorf("unexpected number of move combinations: expected %d: got %d", expected, got)
+	}
+	var foundMoves [][2]int8
+	for i := 0; i < 4; i++ {
+		move := available[0][i]
+		if move[0] == 0 && move[1] == 0 {
+			break
+		}
+		foundMoves = append(foundMoves, move)
+	}
+	got, expected = len(foundMoves), 2
+	if got != expected {
+		t.Errorf("unexpected number of legal moves: expected %d: got %d", expected, got)
+	}
+	var found30 bool
+	var found41 bool
+	for _, move := range foundMoves {
+		if move[0] == 3 && move[1] == 0 {
+			found30 = true
+		} else if move[0] == 4 && move[1] == 1 {
+			found41 = true
+		}
+	}
+	if !found30 {
+		t.Errorf("expected move 3/0 was not found")
+	}
+	if !found41 {
+		t.Errorf("expected move 4/1 was not found")
+	}
+}
+
 func TestMoveTabula(t *testing.T) {
 	{
 		b := NewBoard(VariantTabula)

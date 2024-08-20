@@ -370,6 +370,7 @@ func (b Board) _available(player int8) [][2]int8 {
 
 	var moves [][2]int8
 
+	// Enter board from home space.
 	if b[SpaceVariant] != VariantBackgammon && ((player == 1 && b[SpaceEnteredPlayer] == 0) || (player == 2 && b[SpaceEnteredOpponent] == 0)) && b[homeSpace] != 0 {
 		for space := int8(1); space < 25; space++ {
 			v := b[space]
@@ -378,10 +379,14 @@ func (b Board) _available(player int8) [][2]int8 {
 			}
 		}
 	}
+
 	for from := int8(0); from < 28; from++ {
+		// Skip invalid spaces, spaces without player checkers and non-bar spaces when a checker is on the bar.
 		if from == SpaceHomePlayer || from == SpaceHomeOpponent || from == opponentBarSpace || checkers(player, b[from]) == 0 || (onBar && from != barSpace) {
 			continue
 		}
+
+		// Iterate over destination spaces to determine available moves.
 		if player == 1 && b[SpaceVariant] != VariantTabula {
 			for to := int8(0); to < from; to++ {
 				if to == SpaceBarPlayer || to == SpaceBarOpponent || to == SpaceHomeOpponent || (to == SpaceHomePlayer && !mayBearOff()) {
