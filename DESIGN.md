@@ -59,7 +59,7 @@ the available dice rolls.
 
 Analysis is performed in parallel, utilizing all available CPU cores.
 
-### Step 1: Simulate all legal move available to the player
+### Step 1: Simulate all legal moves available to the player
 
 Copy the current gamestate and simulate each available combination of legal moves.
 Combinations that are logically equal are skipped.
