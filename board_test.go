@@ -32,6 +32,31 @@ func TestAvailableHighRoll(t *testing.T) {
 	}
 }
 
+func TestMovesEqual(t *testing.T) {
+	moves := [][2]int8{{1, 2}, {3, 4}, {5, 6}, {5, 7}}
+	indexes := permutations([]int{0, 1, 2, 3})
+	toMoves := func(i int) [4][2]int8 {
+		in := indexes[i]
+		return [4][2]int8{moves[in[0]], moves[in[1]], moves[in[2]], moves[in[3]]}
+	}
+	for i := range moves {
+		for j := range moves {
+			a := toMoves(i)
+			b := toMoves(j)
+			if i != j && !movesEqual(a, b) {
+				t.Errorf("expected true, got false: %v / %v", a, b)
+			}
+		}
+	}
+	if !movesEqual(toMoves(0), toMoves(0)) {
+		t.Errorf("expected true, got false: %v / %v", toMoves(0), toMoves(0))
+	}
+	a, b := toMoves(0), [4][2]int8{{3, 4}, {5, 6}, {5, 7}, {1, 8}}
+	if movesEqual(a, b) {
+		t.Errorf("expected false, got true: %v / %v", a, b)
+	}
+}
+
 func TestMoveBackgammon(t *testing.T) {
 	b := NewBoard(VariantBackgammon)
 	b[SpaceRoll1] = 1
@@ -474,6 +499,49 @@ func BenchmarkAvailable(b *testing.B) {
 	}
 }
 
+func BenchmarkMovesEqual(b *testing.B) {
+	var moves [][4][2]int8
+
+	type testCase struct {
+		roll1, roll2, roll3, roll4 int8
+	}
+	cases := []*testCase{
+		{1, 1, 1, 1},
+		{2, 2, 2, 2},
+		{3, 3, 3, 3},
+		{4, 4, 4, 4},
+		{5, 5, 5, 5},
+		{6, 6, 6, 6},
+		{1, 2, 0, 0},
+		{2, 3, 0, 0},
+		{3, 4, 0, 0},
+		{4, 5, 0, 0},
+		{5, 6, 0, 0},
+	}
+	for _, c := range cases {
+		board := NewBoard(VariantBackgammon)
+		board[SpaceRoll1] = c.roll1
+		board[SpaceRoll2] = c.roll2
+		board[SpaceRoll3] = c.roll3
+		board[SpaceRoll4] = c.roll4
+
+		var available [][4][2]int8
+		available, _ = board.Available(1)
+
+		moves = append(moves, available...)
+	}
+
+	var result bool
+	for i := 0; i < b.N; i++ {
+		for j := range moves {
+			for k := range moves {
+				result = movesEqual(moves[j], moves[k])
+			}
+		}
+	}
+	_ = result
+}
+
 func BenchmarkAnalyze(b *testing.B) {
 	type testCase struct {
 		roll1, roll2, roll3, roll4 int8
@@ -533,4 +601,31 @@ func BenchmarkMayBearOff(b *testing.B) {
 	}
 
 	_ = allowed
+}
+
+func permutations(a []int) [][]int {
+	res := [][]int{}
+	var _inner func([]int, int)
+	_inner = func(a []int, n int) {
+		if n == 1 {
+			tmp := make([]int, len(a))
+			copy(tmp, a)
+			res = append(res, tmp)
+		} else {
+			for i := 0; i < n; i++ {
+				_inner(a, n-1)
+				if n%2 == 1 {
+					tmp := a[i]
+					a[i] = a[n-1]
+					a[n-1] = tmp
+				} else {
+					tmp := a[0]
+					a[0] = a[n-1]
+					a[n-1] = tmp
+				}
+			}
+		}
+	}
+	_inner(a, len(a))
+	return res
 }
