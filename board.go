@@ -510,21 +510,8 @@ func (b Board) Available(player int8) ([][4][2]int8, []Board) {
 	}
 	var newMoves [][4][2]int8
 	for i := 0; i < len(allMoves); i++ {
-		l := 0
-		// Shift moves left.
-		if (allMoves[i][3][0] != 0 || allMoves[i][3][1] != 0) && allMoves[i][2][0] == 0 && allMoves[i][2][1] == 0 {
-			allMoves[i][2][0], allMoves[i][2][1] = allMoves[i][3][0], allMoves[i][3][1]
-			allMoves[i][2][0], allMoves[i][2][1] = 0, 0
-		}
-		if (allMoves[i][2][0] != 0 || allMoves[i][2][1] != 0) && allMoves[i][1][0] == 0 && allMoves[i][1][1] == 0 {
-			allMoves[i][1][0], allMoves[i][1][1] = allMoves[i][2][0], allMoves[i][2][1]
-			allMoves[i][2][0], allMoves[i][2][1] = 0, 0
-		}
-		if (allMoves[i][1][0] != 0 || allMoves[i][1][1] != 0) && allMoves[i][0][0] == 0 && allMoves[i][0][1] == 0 {
-			allMoves[i][0][0], allMoves[i][0][1] = allMoves[i][1][0], allMoves[i][1][1]
-			allMoves[i][1][0], allMoves[i][1][1] = 0, 0
-		}
 		// Calculate length of moves.
+		l := 0
 		for j := 0; j < 4; j++ {
 			if allMoves[i][j][0] == 0 && allMoves[i][j][1] == 0 {
 				break
@@ -532,7 +519,7 @@ func (b Board) Available(player int8) ([][4][2]int8, []Board) {
 			l = j + 1
 		}
 		// Only allow moves utilizing the maximum number of rolls.
-		if l >= maxLen {
+		if l == maxLen {
 			newMoves = append(newMoves, allMoves[i])
 		}
 	}
