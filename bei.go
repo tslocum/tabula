@@ -7,11 +7,17 @@ import (
 	"log"
 	"net"
 	"strconv"
+	"time"
 
 	"code.rocket9labs.com/tslocum/bei"
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 )
 
+var msgPrinter = message.NewPrinter(language.English)
+
 type BEIServer struct {
+	Verbose bool
 }
 
 func NewBEIServer() *BEIServer {
@@ -55,8 +61,16 @@ func (s *BEIServer) handleConnection(conn net.Conn) {
 				return
 			}
 
+			var t time.Time
 			available, _ := b.Available(1)
-			b.Analyze(available, &analysis, false)
+			if s.Verbose {
+				t = time.Now()
+			}
+			analyzedPositions := b.Analyze(available, &analysis, false)
+			if s.Verbose {
+				delta := time.Since(t)
+				log.Println(msgPrinter.Sprintf("Analyzed %d positions in %s. (%d/ms)", analyzedPositions, delta.Round(time.Millisecond), analyzedPositions/int(delta.Milliseconds())))
+			}
 			var move *bei.Move
 			if len(analysis) > 0 {
 				move = &bei.Move{}

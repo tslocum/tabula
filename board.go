@@ -712,7 +712,7 @@ func (b Board) Evaluation(player int8, hitScore int, moves [4][2]int8) *Analysis
 	return a
 }
 
-func (b Board) Analyze(available [][4][2]int8, result *[]*Analysis, skipOpponent bool) {
+func (b Board) Analyze(available [][4][2]int8, result *[]*Analysis, skipOpponent bool) (analyzedPositions int) {
 	if len(available) == 0 {
 		*result = (*result)[:0]
 		return
@@ -792,6 +792,7 @@ func (b Board) Analyze(available [][4][2]int8, result *[]*Analysis, skipOpponent
 		if a.player == 1 && !past && a.Past {
 			a.Score += priorityScore
 		}
+		analyzedPositions += a.evaluated
 	}
 
 	if b[SpaceVariant] != VariantTabula && b.StartingPosition(1) {
@@ -872,6 +873,7 @@ func (b Board) Analyze(available [][4][2]int8, result *[]*Analysis, skipOpponent
 	sort.Slice(*result, func(i, j int) bool {
 		return (*result)[i].Score < (*result)[j].Score
 	})
+	return analyzedPositions
 }
 
 func (b Board) StartingPosition(player int8) bool {

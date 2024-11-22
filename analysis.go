@@ -76,7 +76,10 @@ type Analysis struct {
 	hitScore int
 	chance   int
 	skipOpp  bool
-	wg       *sync.WaitGroup
+
+	evaluated int
+
+	wg *sync.WaitGroup
 }
 
 func (a *Analysis) _analyze() {
@@ -97,6 +100,7 @@ func (a *Analysis) _analyze() {
 		a.Past = a.Board.Past()
 	}
 	a.Board.evaluate(a.player, hs, a)
+	a.evaluated++
 
 	if a.player == 1 && !a.Past && !a.skipOpp {
 		a.wg.Add(21)
@@ -132,6 +136,7 @@ func (a *Analysis) _analyze() {
 					a.wg.Done()
 					return
 				}
+				a.evaluated += len(available)
 				a.wg.Add(len(available))
 				for _, moves := range available {
 					a := &Analysis{
