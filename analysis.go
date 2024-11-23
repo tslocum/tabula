@@ -125,6 +125,7 @@ func (a *Analysis) _analyze() {
 							chance:      check[2],
 							result:      a.result,
 							resultMutex: a.resultMutex,
+							evaluated:   1,
 						}
 						bc.evaluate(a.player, 0, a)
 						a.resultMutex.Lock()

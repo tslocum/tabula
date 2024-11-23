@@ -68,8 +68,16 @@ func (s *BEIServer) handleConnection(conn net.Conn) {
 			}
 			analyzedPositions := b.Analyze(available, &analysis, false)
 			if s.Verbose {
+				var speed string
 				delta := time.Since(t)
-				log.Println(msgPrinter.Sprintf("Analyzed %d positions in %s. (%d/ms)", analyzedPositions, delta.Round(time.Millisecond), analyzedPositions/int(delta.Milliseconds())))
+				if delta.Nanoseconds() == 0 {
+					speed = "inf"
+				} else {
+					perNanosecond := float64(analyzedPositions) / float64(delta.Nanoseconds())
+					perSecond := int64(perNanosecond * 1000000000)
+					speed = msgPrinter.Sprintf("%d", perSecond)
+				}
+				log.Println(msgPrinter.Sprintf("Analyzed %d positions in %s. (%s/s)", analyzedPositions, delta.Round(time.Millisecond), speed))
 			}
 			var move *bei.Move
 			if len(analysis) > 0 {
