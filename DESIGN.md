@@ -1,6 +1,6 @@
 # Design
 
-[tabula](https://code.rocket9labs.com/tslocum/tabula) is a multi-threaded
+[tabula](https://codeberg.org/tslocum/tabula) is a multi-threaded
 backgammon analysis engine. To find the best move, the engine performs a series
 of simulations and scores the resulting game states. The combination that
 results in the lowest scoring game state is the best move.

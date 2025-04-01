@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	"code.rocket9labs.com/tslocum/tabula"
+	"codeberg.org/tslocum/tabula"
 )
 
 func main() {

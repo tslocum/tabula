@@ -1,8 +1,8 @@
 # tabula - Backgammon analysis engine
-[![GoDoc](https://code.rocket9labs.com/tslocum/godoc-static/raw/branch/main/badge.svg)](https://docs.rocket9labs.com/code.rocket9labs.com/tslocum/tabula)
+[![GoDoc](https://codeberg.org/tslocum/godoc-static/raw/branch/main/badge.svg)](https://docs.rocket9labs.com/codeberg.org/tslocum/tabula)
 [![Donate via LiberaPay](https://img.shields.io/liberapay/receives/rocket9labs.com.svg?logo=liberapay)](https://liberapay.com/rocket9labs.com)
 
-Information on the design of the engine is documented in [DESIGN.md](https://code.rocket9labs.com/tslocum/tabula/src/branch/main/DESIGN.md).
+Information on the design of the engine is documented in [DESIGN.md](https://codeberg.org/tslocum/tabula/src/branch/main/DESIGN.md).
 
 ## Play
 
@@ -14,4 +14,4 @@ A tabula bot is available to play against at https://bgammon.org for each suppor
 
 ## Support
 
-Please share issues and suggestions [here](https://code.rocket9labs.com/tslocum/tabula/issues).
+Please share issues and suggestions [here](https://codeberg.org/tslocum/tabula/issues).

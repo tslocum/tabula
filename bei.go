@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	"code.rocket9labs.com/tslocum/bei"
+	"codeberg.org/tslocum/bei"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 )
