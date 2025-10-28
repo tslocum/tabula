@@ -10,11 +10,7 @@ import (
 	"time"
 
 	"codeberg.org/tslocum/bei"
-	"golang.org/x/text/language"
-	"golang.org/x/text/message"
 )
-
-var msgPrinter = message.NewPrinter(language.English)
 
 type BEIServer struct {
 	Verbose bool

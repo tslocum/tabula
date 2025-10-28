@@ -1,7 +1,9 @@
 module codeberg.org/tslocum/tabula
 
-go 1.17
+go 1.24.0
 
-require golang.org/x/text v0.20.0
+toolchain go1.24.9
 
-require codeberg.org/tslocum/bei v0.0.0-20250401032128-99c6d4509aa6 // indirect
+require golang.org/x/text v0.30.0
+
+require codeberg.org/tslocum/bei v0.0.0-20250401032128-99c6d4509aa6

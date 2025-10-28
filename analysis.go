@@ -2,6 +2,7 @@ package tabula
 
 import (
 	"fmt"
+	"log"
 	"runtime"
 	"sync"
 )
@@ -50,6 +51,13 @@ func init() {
 	}
 	for i := 0; i < cpus; i++ {
 		go analyzer()
+	}
+	if debug {
+		var plural string
+		if cpus > 1 {
+			plural = "s"
+		}
+		log.Printf("Tabula analysis engine is running in DEBUG MODE with %d thread%s", cpus, plural)
 	}
 }
 

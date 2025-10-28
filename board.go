@@ -6,6 +6,10 @@ import (
 	"math"
 	"sort"
 	"sync"
+	"time"
+
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 )
 
 var (
@@ -36,6 +40,8 @@ const (
 	VariantAceyDeucey int8 = 1
 	VariantTabula     int8 = 2
 )
+
+var msgPrinter = message.NewPrinter(language.English)
 
 // Board represents the state of a game. It contains spaces for the checkers,
 // as well as four "spaces" which contain the available die rolls.
@@ -716,6 +722,11 @@ func (b Board) Analyze(available [][4][2]int8, result *[]*Analysis, skipOpponent
 	if len(available) == 0 {
 		*result = (*result)[:0]
 		return
+	} else if debug {
+		t := time.Now()
+		defer func() {
+			log.Println(msgPrinter.Sprintf("Analyzed %d positions in %dms - %s", analyzedPositions, time.Since(t).Milliseconds(), b.String()))
+		}()
 	}
 	const priorityScore = -1000000
 
