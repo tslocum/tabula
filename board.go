@@ -12,11 +12,16 @@ import (
 	"golang.org/x/text/message"
 )
 
+// Buffer sizes.
 var (
-	AnalysisBufferSize    = 128
+	// AnalysisBufferSize is the size of the outer queue buffer, which handles analyzing boards provided to Tabula.
+	AnalysisBufferSize = 128
+
+	// SubAnalysisBufferSize is the size of the inner queue buffer, which handles analyzing potential positions.
 	SubAnalysisBufferSize = 3072
 )
 
+// Named board "spaces".
 const (
 	SpaceHomePlayer      int8 = 0
 	SpaceHomeOpponent    int8 = 25
@@ -31,16 +36,17 @@ const (
 	SpaceVariant         int8 = 34 // 0 - Backgammon, 1 - Acey-deucey, 2 - Tabula.
 )
 
-const (
-	boardSpaces = 35
-)
+// boardSpaces is the number of board spaces.
+const boardSpaces = 35
 
+// Variants.
 const (
 	VariantBackgammon int8 = 0
 	VariantAceyDeucey int8 = 1
 	VariantTabula     int8 = 2
 )
 
+// msgPrinter is used to print large numbers with comma separators.
 var msgPrinter = message.NewPrinter(language.English)
 
 // Board represents the state of a game. It contains spaces for the checkers,
@@ -55,6 +61,7 @@ func NewBoard(variant int8) Board {
 	return Board{0, -2, 0, 0, 0, 0, 5, 0, 3, 0, 0, 0, -5, 5, 0, 0, 0, -3, 0, -5, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0}
 }
 
+// String returns the board state and position as a string.
 func (b Board) String() string {
 	var board []byte
 	for i, v := range b {
@@ -104,6 +111,7 @@ func (b Board) String() string {
 	return fmt.Sprintf("Board: %s\nVariant: %s\nEntered: %s / %s\nOff: %d / %d\nRolls: %s", board, variant, entered1, entered2, off1, off2, rolls)
 }
 
+// SetValue sets the value of a space.
 func (b Board) SetValue(space int, value int8) Board {
 	b[space] = value
 	return b
@@ -151,6 +159,7 @@ func checkers(player int8, v int8) int8 {
 	return 0
 }
 
+// MayBearOff returns whether the specified player is eligible to bear checkers off the board.
 func (b Board) MayBearOff(player int8) bool {
 	if b[SpaceVariant] != VariantBackgammon && ((player == 1 && b[SpaceEnteredPlayer] == 0) || (player == 2 && b[SpaceEnteredOpponent] == 0)) {
 		return false
@@ -182,6 +191,7 @@ func (b Board) MayBearOff(player int8) bool {
 	return true
 }
 
+// spaceDiff returns the distance between the provided spaces.
 func (b Board) spaceDiff(player int8, from int8, to int8) int8 {
 	switch {
 	case from < 0 || from > 27 || to < 0 || to > 27:
@@ -350,6 +360,7 @@ func (b Board) UseRoll(from int8, to int8, player int8) Board {
 	return b
 }
 
+// _available returns legal moves available.
 func (b Board) _available(player int8) [][2]int8 {
 	var bearOff int
 	mayBearOff := func() bool {
@@ -563,6 +574,8 @@ func (b Board) Available(player int8) ([][4][2]int8, []Board) {
 	return newMoves, boards
 }
 
+// FirstLast returns the position of the specified player's first checker and
+// their opponent's last checker.
 func (b Board) FirstLast(player int8) (playerFirst int8, opponentLast int8) {
 	playerFirst, opponentLast = -1, -1
 	if b[SpaceBarPlayer] != 0 || b[SpaceBarOpponent] != 0 || b[SpaceVariant] == VariantTabula {
@@ -590,6 +603,8 @@ func (b Board) FirstLast(player int8) (playerFirst int8, opponentLast int8) {
 	return playerFirst, opponentLast
 }
 
+// Past returns whether the players have passed each other on the board with all
+// of their checkers. When this is the case, hitting a checker is no longer possible.
 func (b Board) Past() bool {
 	playerFirst, opponentLast := b.FirstLast(1)
 	if playerFirst == -1 || opponentLast == -1 {
@@ -598,6 +613,8 @@ func (b Board) Past() bool {
 	return playerFirst < opponentLast
 }
 
+// SecondHalf returns whether all of the checkers of the specified player are
+// either located in the second half of the board or have been beared off.
 func (b Board) SecondHalf(player int8) bool {
 	if b[SpaceVariant] != VariantTabula {
 		return false
@@ -630,6 +647,7 @@ func (b Board) SecondHalf(player int8) bool {
 	return true
 }
 
+// Pips returns the total pip value corresponding to all of the checkers of the specified player.
 func (b Board) Pips(player int8) int {
 	var pips int
 	if b[SpaceVariant] != VariantBackgammon {
@@ -650,6 +668,7 @@ func (b Board) Pips(player int8) int {
 	return pips
 }
 
+// Blots returns the number of blots the specified player has on the board.
 func (b Board) Blots(player int8) int {
 	_, last := b.FirstLast(player)
 	o := opponent(player)
@@ -674,6 +693,7 @@ func (b Board) Blots(player int8) int {
 	return pips
 }
 
+// evaluate scores a board and records it in an Analysis.
 func (b Board) evaluate(player int8, hitScore int, a *Analysis) {
 	pips := b.Pips(player)
 	score := float64(pips)
@@ -706,6 +726,7 @@ func (b Board) evaluate(player int8, hitScore int, a *Analysis) {
 	a.hitScore = hitScore
 }
 
+// Evaluation scores a board and returns the resulting Analysis.
 func (b Board) Evaluation(player int8, hitScore int, moves [4][2]int8) *Analysis {
 	a := &Analysis{
 		Board:  b,
@@ -718,6 +739,9 @@ func (b Board) Evaluation(player int8, hitScore int, moves [4][2]int8) *Analysis
 	return a
 }
 
+// Analyze analyzes all legal player moves and all legal opponent moves that may follow.
+// The available moves and their potential counters are scored and sorted, and the final
+// analysis is stored in the result slice.
 func (b Board) Analyze(available [][4][2]int8, result *[]*Analysis, skipOpponent bool) (analyzedPositions int) {
 	if len(available) == 0 {
 		*result = (*result)[:0]
@@ -887,6 +911,7 @@ func (b Board) Analyze(available [][4][2]int8, result *[]*Analysis, skipOpponent
 	return analyzedPositions
 }
 
+// StartingPosition returns whether the specified player has all of their checkers in the initial position.
 func (b Board) StartingPosition(player int8) bool {
 	if player == 1 {
 		return b[6] == 5 && b[8] == 3 && b[13] == 5 && b[24] == 2
@@ -894,6 +919,7 @@ func (b Board) StartingPosition(player int8) bool {
 	return b[1] == -2 && b[12] == -5 && b[17] == -3 && b[19] == -5
 }
 
+// ChooseDoubles analyzes and returns the best choice of doubles in an acey-deucey game.
 func (b Board) ChooseDoubles(result *[]*Analysis) int {
 	if b[SpaceVariant] != VariantAceyDeucey {
 		return 0
@@ -919,10 +945,12 @@ func (b Board) ChooseDoubles(result *[]*Analysis) int {
 	return bestDoubles
 }
 
+// Print prints the board to the console.
 func (b Board) Print() {
 	log.Printf("%+v", b)
 }
 
+// opponent returns the opponent number of the specified player.
 func opponent(player int8) int8 {
 	if player == 1 {
 		return 2
@@ -930,6 +958,7 @@ func opponent(player int8) int8 {
 	return 1
 }
 
+// spaceValue returns the pip value of a space.
 func spaceValue(player int8, space int8, variant int8) int {
 	if space == SpaceHomePlayer || space == SpaceHomeOpponent || space == SpaceBarPlayer || space == SpaceBarOpponent {
 		return 25
@@ -940,6 +969,7 @@ func spaceValue(player int8, space int8, variant int8) int {
 	}
 }
 
+// PseudoPips returns the pseudo-pip value of a space.
 func PseudoPips(player int8, space int8, variant int8) int {
 	v := 6 + spaceValue(player, space, variant) + int(math.Exp(float64(spaceValue(player, space, variant))*0.2))*2
 	if space == SpaceHomePlayer || space == SpaceHomeOpponent || (variant == VariantTabula && space < 13) || (variant != VariantTabula && ((player == 1 && (space > 6 || space == SpaceBarPlayer)) || (player == 2 && (space < 19 || space == SpaceBarOpponent)))) {
@@ -948,6 +978,7 @@ func PseudoPips(player int8, space int8, variant int8) int {
 	return v
 }
 
+// movesEqual returns whether two sets of moves are logically equal.
 func movesEqual(a [4][2]int8, b [4][2]int8) bool {
 	return true &&
 		(a[0][0] == b[0][0] && a[0][1] == b[0][1] && // 1
