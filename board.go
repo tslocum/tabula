@@ -448,7 +448,7 @@ func (b Board) Available(player int8) ([][4][2]int8, []Board) {
 
 	movesFound := func(moves [4][2]int8) bool {
 		for i := range allMoves {
-			if movesEqual(allMoves[i], moves) {
+			if MovesEqual(allMoves[i], moves) {
 				return true
 			}
 		}
@@ -898,7 +898,7 @@ func (b Board) Analyze(available [][4][2]int8, result *[]*Analysis, skipOpponent
 			}
 		}
 		for _, a := range *result {
-			if movesEqual(a.Moves, opening) {
+			if MovesEqual(a.Moves, opening) {
 				a.Score = priorityScore
 				break
 			}
@@ -978,8 +978,8 @@ func PseudoPips(player int8, space int8, variant int8) int {
 	return v
 }
 
-// movesEqual returns whether two sets of moves are logically equal.
-func movesEqual(a [4][2]int8, b [4][2]int8) bool {
+// MovesEqual returns whether two sets of moves are logically equal.
+func MovesEqual(a [4][2]int8, b [4][2]int8) bool {
 	return true &&
 		(a[0][0] == b[0][0] && a[0][1] == b[0][1] && // 1
 			((a[1][0] == b[1][0] && a[1][1] == b[1][1] && // 2

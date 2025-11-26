@@ -20,7 +20,7 @@ func TestAvailableHighRoll(t *testing.T) {
 	}
 	for i, testCase := range testCases {
 		for _, moves := range available {
-			if movesEqual(moves, testCase.moves) {
+			if MovesEqual(moves, testCase.moves) {
 				testCase.found++
 				continue
 			}
@@ -43,16 +43,16 @@ func TestMovesEqual(t *testing.T) {
 		for j := range moves {
 			a := toMoves(i)
 			b := toMoves(j)
-			if i != j && !movesEqual(a, b) {
+			if i != j && !MovesEqual(a, b) {
 				t.Errorf("expected true, got false: %v / %v", a, b)
 			}
 		}
 	}
-	if !movesEqual(toMoves(0), toMoves(0)) {
+	if !MovesEqual(toMoves(0), toMoves(0)) {
 		t.Errorf("expected true, got false: %v / %v", toMoves(0), toMoves(0))
 	}
 	a, b := toMoves(0), [4][2]int8{{3, 4}, {5, 6}, {5, 7}, {1, 8}}
-	if movesEqual(a, b) {
+	if MovesEqual(a, b) {
 		t.Errorf("expected false, got true: %v / %v", a, b)
 	}
 }
@@ -535,7 +535,7 @@ func BenchmarkMovesEqual(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		for j := range moves {
 			for k := range moves {
-				result = movesEqual(moves[j], moves[k])
+				result = MovesEqual(moves[j], moves[k])
 			}
 		}
 	}
